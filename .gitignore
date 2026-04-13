@@ -1,0 +1,7 @@
+.openclaude-profile.json
+.vscode/launch.json
+/.vscode
+hbnum.code-workspace
+mk/hbnum_tests.log
+mk/msvc64/hbnum_tests.log
+./_commit.txt
