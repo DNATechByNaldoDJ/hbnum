@@ -1,0 +1,26 @@
+# hbnum: Released to Public Domain.
+* text=auto eol=crlf
+
+*.prg text eol=crlf
+*.c text eol=crlf
+*.h text eol=crlf
+*.ch text eol=crlf
+*.hbp text eol=crlf
+*.hbc text eol=crlf
+*.hbm text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.hb text eol=crlf
+*.md text eol=crlf
+*.txt text eol=crlf
+*.csv text eol=crlf
+*.ucf text eol=crlf
+*.lst text eol=crlf
+
+*.exe binary
+*.dll binary
+*.lib binary
+*.obj binary
+*.o binary
+*.a binary
+*.pdb binary
