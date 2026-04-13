@@ -1,7 +1,22 @@
+# hbnum: Released to Public Domain.
+
+# Sensitive/local machine metadata
 .openclaude-profile.json
-.vscode/launch.json
+
+# Workspace/IDE local state
+.vscode/
+.vscode/*
+.vscode/**
 /.vscode
+.vscode/launch.json
 hbnum.code-workspace
-mk/hbnum_tests.log
-mk/msvc64/hbnum_tests.log
 ./_commit.txt
+
+# Generated test/benchmark logs (do not version)
+mk/*.log
+mk/msvc64/*.log
+msvc64/*.log
+tests/*.log
+*tests*.log
+*bench*.log
+_commit.txt

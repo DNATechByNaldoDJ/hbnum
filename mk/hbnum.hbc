@@ -1,3 +1,4 @@
+# hbnum: Released to Public Domain.
 # HBNum package defaults
 prgflags=-w3 -es2
 hbcs=xhb.hbc

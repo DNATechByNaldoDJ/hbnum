@@ -31,7 +31,7 @@
 
 #include "directry.ch"
 
-#define _HBROOT_  hb_PathNormalize( hb_DirSepToOS( "..\AdvPL\" ) )  /* must end with dirsep */
+#define _HBROOT_  hb_PathNormalize( hb_DirSepToOS( hb_DirBase() + "../" ) )  /* must end with dirsep */
 
 FUNCTION CheckFileList( xName )
 
@@ -105,6 +105,7 @@ STATIC FUNCTION CheckFile( cName, /* @ */ aErr, lApplyFixes )
 
    LOCAL aCanBeDot := { ;
       ".travis.yml", ;
+      ".editorconfig", ;
       ".git*" }
 
    LOCAL aCanBeLong := { ;
@@ -124,7 +125,8 @@ STATIC FUNCTION CheckFile( cName, /* @ */ aErr, lApplyFixes )
    LOCAL aCanHaveNoExtension := { ;
       ".*", ;
       "Makefile", ;
-      "debian/*" }
+      "debian/*", ;
+      "LICENSE" }
 
    LOCAL aCanHaveTab := { ;
       "Makefile", ;

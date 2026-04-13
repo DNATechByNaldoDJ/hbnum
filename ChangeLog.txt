@@ -2,8 +2,59 @@
      * Change  ! Fix  % Optimize  + Add  - Remove  ; Comment
    Entries may not always be in chronological/commit order.
    See license at the end of file.
-   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Initial Commit)"
+   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Initial project import and repo configs)"
 */
+
+2026-04-13 19:56 UTC naldodj (Initial project import and repo configs)
+  Initial project import and repo configs
+    Import HBNum sources and tooling: add .editorconfig and .gitattributes, update .gitignore, and add many build/test/benchmark scripts (mk/), bin utilities, include headers, C core and Harbour sources (src/), and test harnesses.
+    Also update ChangeLog and substantially revise README to document architecture, build flow (MSVC64), tests and benchmarks. Establishes repository layout and tooling for building, testing and benchmarking the HBNum project.
+      + .editorconfig
+      + .gitattributes
+      + mk/go64_commit_check.bat
+      * .gitignore
+      * bin/3rdpatch.hb
+      * bin/check.hb
+      * bin/commit.hb
+      * bin/findnoasciicharacters.ps1
+      * bin/patches/ext.txt
+      * bin/patches/makepatch.bat
+      * bin/patches/makepatch.ps1
+      * bin/tolower.ps1
+      * ChangeLog.txt
+      * include/hbnum_defs.ch
+      * include/hbnum_prg.h
+      * include/hbnum.ch
+      * mk/go64_bench_tbig.bat
+      * mk/go64_bench.bat
+      * mk/go64_test.bat
+      * mk/go64.bat
+      * mk/hbnum_bench_compare.csv
+      * mk/hbnum_bench_tbig.hbc
+      * mk/hbnum_bench_tbig.hbm
+      * mk/hbnum_bench_tbig.hbp
+      * mk/hbnum_bench.hbc
+      * mk/hbnum_bench.hbm
+      * mk/hbnum_bench.hbp
+      * mk/hbnum_test.hbc
+      * mk/hbnum_test.hbm
+      * mk/hbnum_test.hbp
+      * mk/hbnum.hbc
+      * mk/hbnum.hbm
+      * mk/hbnum.hbp
+      * mk/msvc64/hbnum_bench_compare.csv
+      * mk/msvc64/hbnum_test.exe
+      * README.md
+      * src/c/hbnum_core_math.c
+      * src/c/hbnum_core.c
+      * src/hb/hbnum_compare_ops.prg
+      * src/hb/hbnum_integer_ops.prg
+      * src/hb/hbnum_math_ops.prg
+      * src/hb/hbnum.prg
+      * tests/bench_compare.prg
+      * tests/tbig_link_stubs.prg
+      * tests/test.hbp
+      * tests/test.prg
 
 2026-04-13 19:16 UTC naldodj (Initial Commit)
   + bin/3rdpatch.hb

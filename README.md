@@ -514,6 +514,7 @@ For every new implementation iteration, update:
 2. Section **18** (snapshot + pending items).
 3. Section **20** (build process changes, if any).
 4. Test coverage items in Section **15** and Section **18**.
+5. Section **25** (coding-standard checklist and validation status).
 
 Rule:
 
@@ -640,5 +641,131 @@ Minimum acceptance for this iteration:
 - [x] Benchmark harness generated log + CSV outputs
 - [x] Comparative run validated for shared vector subset (`hbnum_bench_tbig.exe`)
 - [ ] Comparative run validated with full `tBigNumber` vector expansion
+
+---
+
+## 25. CODING STANDARD (MANDATORY)
+
+This section defines repository-wide formatting and file-header standards.
+
+### 25.1 Public Domain Header
+
+All project-owned code/build files MUST contain the marker:
+
+```txt
+hbnum: Released to Public Domain.
+```
+
+Current mandatory scope:
+
+- `src/`
+- `include/`
+- `tests/`
+- `mk/`
+
+Note:
+
+- Third-party or imported tooling should keep original license headers.
+
+### 25.2 Line Endings and Whitespace
+
+Mandatory text-file conventions:
+
+- Canonical line ending: `CRLF` (`\r\n`)
+- No mixed line endings (`LF` and `CRLF`) inside or across project text files
+- No trailing whitespace at end of lines
+- Final newline required at end of file
+
+### 25.3 Repository Enforcement
+
+Repository now includes:
+
+- `.editorconfig` for editor-side normalization (`CRLF`, final newline, trailing whitespace trim)
+- `.gitattributes` for Git-side normalization (`eol=crlf` for text files)
+- `.gitignore` for local-sensitive metadata and generated logs (tests/benchmark)
+
+### 25.4 Quick Validation Commands
+
+Trailing whitespace scan:
+
+```powershell
+rg -n --pcre2 "[ \t]+$" src include tests mk README.md ChangeLog.txt
+```
+
+Header marker scan (files that still need the marker):
+
+```powershell
+$files = rg --files src include tests mk | ? { [IO.Path]::GetExtension($_).ToLower() -in '.prg','.c','.h','.ch','.hbp','.hbc','.hbm','.bat' }
+$files | ? { -not ([IO.File]::ReadAllText((Join-Path (Get-Location) $_)) -match 'hbnum:\s*Released to Public Domain\.') }
+```
+
+### 25.5 Coding Standard Checklist (LIVE)
+
+- [x] `.editorconfig` created and tracked
+- [x] `.gitattributes` created and tracked
+- [x] `.gitignore` updated for sensitive local files (e.g. `.openclaude-profile.json`)
+- [x] Test/benchmark log files ignored by pattern
+- [x] Public-domain marker applied to project-owned files in `src/include/tests/mk`
+- [x] Trailing whitespace removed from project-owned text files
+- [x] Text files normalized to `CRLF`
+- [ ] Add CI/pre-commit gate to reject non-standard EOL/whitespace/header regressions
+
+---
+
+## 26. HARBOUR PRE-COMMIT STANDARD (`check.hb` / `commit.hb`)
+
+`bin/check.hb` and `bin/commit.hb` are the Harbour-style quality gates for filename/content validation before commit.
+
+### 26.1 Canonical Flow in HBNum
+
+Use `commit.hb` as canonical gate.
+
+Recommended wrapper (Windows):
+
+```bat
+cd mk
+go64_commit_check.bat
+```
+
+Direct full-repository audit:
+
+```bat
+F:\harbour_msvc\bin\win\msvc64\hbrun.exe bin\commit.hb -c
+```
+
+Notes:
+
+- `go64_commit_check.bat` uses `--check-only` (recommended for commit gate).
+- `-c` is a full scan/audit command.
+
+### 26.2 Main Rules Enforced
+
+- filename must be ASCII-7
+- filename extension must be known in `.gitattributes`
+- no TABs (except allowlist)
+- no BOM
+- no mixed EOL
+- `.bat` must use `CRLF`; `.sh` must use `LF`
+- no trailing whitespace
+- exactly one newline at EOF
+- text must be UTF-8 or ASCII-7
+- source files must include license marker (`public domain`, `copyright`, or `license`)
+- C sources must not use `//` comments
+
+### 26.3 HBNum Alignment Applied
+
+- `check.hb` root was aligned to this repository root.
+- `.gitignore` was adjusted so local editor artifacts (`.vscode/`) are ignored by Harbour scanners.
+- `.gitattributes` now includes project text extensions used locally (`*.ucf`, `*.lst`).
+- `CRLF` normalization and whitespace cleanup were reapplied.
+
+### 26.4 Compliance Checklist (LIVE)
+
+- [x] `hbrun.exe bin/commit.hb -c` passing with zero findings
+- [x] Wrapper script created: `mk/go64_commit_check.bat`
+- [x] `.openclaude-profile.json` ignored
+- [x] Test/benchmark log outputs ignored
+- [x] `.vscode` local artifacts ignored for scanner flow
+- [ ] Add automated repository bootstrap step to install git pre-commit hook from `commit.hb`
 
 ---

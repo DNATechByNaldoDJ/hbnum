@@ -1,3 +1,6 @@
+/*
+hbnum: Released to Public Domain.
+*/
 #include "hbnum.ch"
 #include "hblog.ch"
 
