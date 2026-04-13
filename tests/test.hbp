@@ -1,0 +1,6 @@
+-i../include
+-otest_hbnum
+
+../src/hb/hbnum.prg
+../src/c/hbnum_core.c
+test.prg

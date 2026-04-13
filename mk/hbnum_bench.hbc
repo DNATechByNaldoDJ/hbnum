@@ -1,0 +1,5 @@
+# HBNum benchmark package defaults
+prgflags=-w3 -es2
+hbcs=xhb.hbc
+hbcs=hbct.hbc
+hbcs=hbmemio.hbc
