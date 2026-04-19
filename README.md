@@ -1,4 +1,4 @@
-# HBNumHBNum is an arbitrary precision numeric library designed for the Harbour ecosystem.> ⚠️ This document is the SINGLE SOURCE OF TRUTH.> Any implementation MUST strictly follow these rules.---## 1. SYSTEM OVERVIEWHBNum is:> A **C-based numeric engine with a Harbour interface**Execution model:Harbour → orchestrationC       → computation### HARD RULEIF heavy math is implemented in Harbour → WRONG---## 2. DESIGN PRINCIPLES- Harbour-first API (interface only)- ALL heavy computation MUST be in C- Arbitrary precision (memory-bound)- Immutable-style operations- Deterministic arithmetic (no floating point)- Extensible architecture---## 3. DATA STRUCTURE (MANDATORY)Every number MUST follow EXACTLY this structure:```harbour
+# HBNumHBNum is an arbitrary precision numeric library designed for the Harbour ecosystem.> ⚠️ This document is the SINGLE SOURCE OF TRUTH.> Any implementation MUST strictly follow these rules.---## 1. SYSTEM OVERVIEWHBNum is:> A **C-based numeric engine with a Harbour interface**Execution model:Harbour → orchestrationC       → computation### HARD RULEIF heavy math is implemented in Harbour → WRONG---## 2. DESIGN PRINCIPLES- Harbour-first API (interface only)- ALL heavy computation MUST be in C- Arbitrary precision (memory-bound)- No hard-coded precision caps inside HBNum- Precision/approximation policy belongs to HBNumContext- Immutable-style operations- Deterministic arithmetic (no floating point)- Extensible architecture---## 3. DATA STRUCTURE (MANDATORY)Every number MUST follow EXACTLY this structure:```harbour
 {
    "nSign"  => -1 | 0 | 1,
    "nScale" => >= 0,
@@ -19,6 +19,7 @@ Current modular layout (started in this iteration):
 ```bash
 Harbour
   - HBNum (core object lifecycle + delegation)
+  - HBNumContext (precision/approximation policy for decimal operations)
   - HBNumCompareOps (relational/comparison helpers)
   - HBNumMathOps (modular integer-math helpers)
   - HBNumIntegerOps (number-theory integer helpers)
@@ -28,7 +29,7 @@ C
   - hbnum_core_math.c (mod + integer power extension)
   - hbnum_core_number_theory.c (gcd + lcm extension)
 ```
----### 8.1 Harbour Responsibilities- Input normalization- Object lifecycle- Delegation to C- Result wrapping---### 8.2 C Responsibilities- Arithmetic operations- Carry / borrow logic- Limb manipulation- Normalization- Performance-critical logic---## 9. C IMPLEMENTATION RULES (STRICT)### MUST- Use HB_FUNC- Use PHB_ITEM- Use hb_array*, hb_hash*- Use hb_item*- Use hb_ret*- Use hb_xgrab / hb_xfree- Prefer stack allocation when possible---### MUST NOT- malloc inside loops- realloc inside loops- floating point usage- pointer sharing between objects- Harbour-based arithmetic loops---## 10. HARBOUR API (REFERENCE)```harbourCLASS HBNum   DATA hbNum   METHOD New(xValue)   METHOD FromString(cValue)   METHOD FromInt(nValue)   METHOD Clone()   METHOD Add(xValue)
+---### 8.1 Harbour Responsibilities- Input normalization- Object lifecycle- Delegation to C- Result wrapping---### 8.2 C Responsibilities- Arithmetic operations- Carry / borrow logic- Limb manipulation- Normalization- Performance-critical logic---## 9. C IMPLEMENTATION RULES (STRICT)### MUST- Use HB_FUNC- Use PHB_ITEM- Use hb_array*, hb_hash*- Use hb_item*- Use hb_ret*- Use hb_xgrab / hb_xfree- Prefer stack allocation when possible---### MUST NOT- malloc inside loops- realloc inside loops- floating point usage- pointer sharing between objects- Harbour-based arithmetic loops---## 10. HARBOUR API (REFERENCE)```harbourCLASS HBNum   DATA hbNum   DATA oContext   METHOD New(xValue)   METHOD FromString(cValue)   METHOD FromInt(nValue)   METHOD Clone()   METHOD Add(xValue)
    METHOD Sub(xValue)
    METHOD Mul(xValue)
    METHOD Div(xValue, nPrecision)
@@ -45,11 +46,31 @@ C
    METHOD PowInt(nExp)
    METHOD Gcd(xValue)
    METHOD Lcm(xValue)
+   METHOD Round(nPrecision)
+   METHOD Truncate(nPrecision)
+   METHOD Floor(nPrecision)
+   METHOD Ceiling(nPrecision)
 
    METHOD Abs()
    METHOD Neg()
    METHOD IsZero()
-   METHOD Normalize()   METHOD ToString()ENDCLASS```---## 11. IMPLEMENTATION CHECKLIST (FOR AI)
+   METHOD Normalize()
+   METHOD ToString()
+   METHOD SetContext(oContext)
+   METHOD GetContext()
+   METHOD SetPrecision(nPrecision)
+   METHOD GetPrecision()
+   METHOD SetRootPrecision(nPrecision)
+   METHOD GetRootPrecision()
+   METHOD SetLogPrecision(nPrecision)
+   METHOD GetLogPrecision()
+ENDCLASS
+
+CLASS HBNumContext
+   DATA nPrecision
+   DATA nRootPrecision
+   DATA nLogPrecision
+ENDCLASS```---## 11. IMPLEMENTATION CHECKLIST (FOR AI)
 
 Live status (must be updated on each implementation iteration):
 
@@ -68,18 +89,36 @@ Live status (must be updated on each implementation iteration):
 - [x] Number-theory C module added (`hbnum_core_number_theory.c`)
 - [x] GCD implemented (`HBNUM_CORE_GCD`)
 - [x] LCM implemented (`HBNUM_CORE_LCM`)
+- [x] Precision context added in Harbour (`HBNumContext`)
+- [x] `HBNum` no longer imposes hard-coded default precision caps
+- [x] `Div()` auto-resolves exact terminating decimals when precision is omitted
+- [x] `Div()` fails fast on non-terminating decimals unless explicit/context precision is available
+- [x] Explicit decimal behavior toolkit added (`Round/Truncate/Floor/Ceiling`)
 - [x] Benchmark/accuracy harness created (`tests/bench_compare.prg`)
 - [x] CSV + LOG outputs created for benchmark runs
 - [x] Dedicated benchmark build flow created (`mk/hbnum_bench*.hbp`)
-- [ ] No overflow risk fully validated with stress/fuzz tests
-- [ ] Memory safety fully validated with dedicated tooling
+- [x] Compare edge-case tests expanded (sign/scale/zero matrix)
+- [x] Mod edge-case tests expanded (scale + divisor sign permutations)
+- [x] PowInt edge-case tests expanded (decimal base + even negative base + zero base)
+- [x] GCD/LCM edge-case tests expanded (very large operands + co-prime stress)
+- [x] Shared benchmark accuracy vectors expanded (decimal/sign/large integer cases)
+- [x] Comparative run validated with expanded shared-compatible vector set in `hbnum_bench_tbig.exe`
+- [x] Property/randomized robustness suite added (`tests/robustness.prg`)
+- [x] Dedicated robustness build flow created (`mk/hbnum_robust*.hbp`, `mk/go64_robust.bat`)
+- [x] Stress/fuzz-style large-limb and lifecycle coverage validated in `hbnum_robust.exe`
+- [x] Memory safety smoke validation executed with Application Verifier (`Heaps/Handles/Memory/Leak`)
 
 Notes:
 
 - C core uses `HB_U64` for carry/borrow intermediates.
 - All operations exposed to Harbour return NEW hashes.
 - C exports use `HBNUM_CORE_*` namespace to avoid method-name collisions in Harbour.
-- Remaining unchecked items are validation tasks, not design gaps.
+- `HBNum` growth is memory-bound and does not rely on a built-in default decimal precision cap.
+- `HBNumContext` is the policy layer for approximate operations and precision-sensitive families.
+- With `HBNumContext:nPrecision == NIL`, `Div()` returns exact terminating decimals and raises on non-terminating decimal expansions.
+- `hbnum_robust.exe` supports env-driven loop profiles via `HBNUM_ROBUST_*`.
+- Application Verifier export can legitimately return "no valid log file" when no verifier events are recorded for the run.
+- Cross-tool memory analysis beyond Application Verifier remains optional future hardening when additional tooling is available.
 ---## 12. PERFORMANCE RULES- Prefer stack over heap- Minimize allocations- Avoid copying arrays- Avoid dynamic resizing in loops- Optimize memory locality---## 13. FORBIDDEN PRACTICES- Floating point operations- Harbour loops for arithmetic- String-based math- Shared limb arrays- Premature optimization---## 14. DEVELOPMENT ORDERImplement in this sequence:1. Normalize2. Compare3. Add / Sub4. Mul5. Div---## 15. TEST CONTRACT (MANDATORY)> Every implementation MUST include test cases.---### 15.1 Test RequirementsEach operation MUST include:- Simple case- Carry / borrow case- Different sizes- Negative values- Zero handling- Extreme values---### 15.2 Test Format```harbourFUNCTION Test_Add_Simple()   LOCAL oA := HBNum():FromString("2")   LOCAL oB := HBNum():FromString("3")   LOCAL oR := oA:Add(oB)   RETURN oR:ToString() == "5"```---### 15.3 Mandatory ADD Tests
 ```harbour
 // carry
@@ -128,17 +167,20 @@ hb_ntos(HBNUM_BASE - 1) * "2" = hb_ntos((HBNUM_BASE - 1) * 2)
 ### 15.3.3 Mandatory DIV Tests
 
 ```harbour
-// simple
-"10" / "2" (precision 0) = "5"
+// exact terminating decimal without explicit precision/context
+"1" / "8" = "0.125"
 
-// truncation
+// simple exact integer without explicit precision/context
+"10" / "2" = "5"
+
+// truncation with explicit policy
 "7" / "2" (precision 0) = "3"
 
-// precision
-"1" / "8" (precision 3) = "0.125"
-
-// negative
+// negative with explicit policy
 "-10" / "4" (precision 0) = "-2"
+
+// non-terminating decimal requires explicit precision/context
+"1" / "3" (no precision/context) => error
 ```
 
 ---
@@ -212,7 +254,7 @@ Additionally, tests now persist a detailed log file using LOGRDD-style flow:
 
 - `INIT LOG ON FILE` / `SET LOG STYLE` / `LOG ... PRIORITY ...` / `CLOSE LOG`
 - log file name: `hbnum_tests.log`
-- default location: current execution directory (for `mk/go64_test.bat`, this is `mk/`)
+- default location: executable directory + `log/`, resolved from `hb_ProgName()` (for `mk/go64_test.bat`, this is `mk/msvc64/log/`)
 
 This format is mandatory for faster diagnostics during iterative development.
 
@@ -226,8 +268,8 @@ A dedicated runner now exists in:
 
 Outputs generated by this runner:
 
-- `hbnum_bench_compare.log` (detailed execution trace)
-- `hbnum_bench_compare.csv` (structured results for analysis)
+- `mk/msvc64/log/hbnum_bench_compare.log` (detailed execution trace)
+- `mk/msvc64/log/hbnum_bench_compare.csv` (structured results for analysis)
 
 Execution modes:
 
@@ -253,6 +295,46 @@ Current comparative performance policy:
 Rule:
 
 - Benchmark/accuracy iterations must append CSV and LOG outputs to support reproducible comparisons across implementations.
+- Harness now separates `HBNum` full accuracy vectors from a `tBigNumber` shared-compatible comparative subset.
+- Shared-compatible comparative subset now includes decimal division, decimal multiplication, expanded integer power cases and safe LCM cases; decimal `Mod` and broader `GCD` parity remain outside the shared subset due observed `tBigNumber` behavior.
+- Full `tBigNumber` inventory expansion remains pending.
+
+---
+
+### 15.9 Robustness / Property Runner
+
+A dedicated robustness runner now exists in:
+
+- `tests/robustness.prg`
+
+Outputs generated by this runner:
+
+- `mk/msvc64/log/hbnum_robust.log` (detailed randomized/stress trace)
+
+Coverage currently includes:
+
+- randomized integer oracle against Harbour numeric expectations
+- randomized decimal oracle with exact scaled-text expectations
+- large constructed division/modulo and `GCD/LCM` stress cases
+- lifecycle/allocation pressure chains with invariant validation after every step
+- structural invariant checks for `nSign/nScale/nUsed/aLimbs`
+
+Execution mode:
+
+- build with `mk/hbnum_robust.hbp`
+- run `mk/msvc64/hbnum_robust.exe`
+
+Runtime knobs:
+
+- `HBNUM_ROBUST_SEED`
+- `HBNUM_ROBUST_INT_LOOPS`
+- `HBNUM_ROBUST_DECIMAL_LOOPS`
+- `HBNUM_ROBUST_LARGE_LOOPS`
+- `HBNUM_ROBUST_LIFECYCLE_LOOPS`
+
+Validation note:
+
+- the runner accepts `0` loops for a suite, which is useful for isolating/debugging a specific robustness block without editing code.
 
 ---
 ## 16. AI INSTRUCTION BLOCK (FOR PROMPTS)```Follow STRICTLY the HBNum specification.DO NOT:- change structure- introduce new fields- use floating point- mutate inputsENSURE:- base 2^30- normalization- memory safety- invariant compliance```---## 17. PROJECT STRUCTURE
@@ -260,10 +342,11 @@ Rule:
 ```txt
 hbnum/
 ├─ mk/
-│  ├─ go64.bat
+│  ├─ go64_lib.bat
 │  ├─ go64_test.bat
 │  ├─ go64_bench.bat
 │  ├─ go64_bench_tbig.bat
+│  ├─ go64_robust.bat
 │  ├─ hbnum.hbp
 │  ├─ hbnum.hbm
 │  ├─ hbnum.hbc
@@ -276,14 +359,20 @@ hbnum/
 │  ├─ hbnum_bench_tbig.hbp
 │  ├─ hbnum_bench_tbig.hbm
 │  ├─ hbnum_bench_tbig.hbc
+│  ├─ hbnum_robust.hbp
+│  ├─ hbnum_robust.hbm
+│  ├─ hbnum_robust.hbc
 │  └─ msvc64/
-│     ├─ hbnum.exe
+│     ├─ hbnum.lib
 │     ├─ hbnum_test.exe
 │     ├─ hbnum_bench.exe
-│     └─ hbnum_bench_tbig.exe
+│     ├─ hbnum_bench_tbig.exe
+│     ├─ hbnum_robust.exe
+│     └─ log/
 ├─ src/
 │  ├─ hb/
 │  │  ├─ hbnum.prg
+│  │  ├─ hbnum_context.prg
 │  │  ├─ hbnum_compare_ops.prg
 │  │  ├─ hbnum_math_ops.prg
 │  │  └─ hbnum_integer_ops.prg
@@ -297,6 +386,8 @@ hbnum/
 ├─ tests/
 │  ├─ test.prg
 │  ├─ bench_compare.prg
+│  ├─ hbnum_test_paths.prg
+│  ├─ robustness.prg
 │  ├─ tbig_link_stubs.prg
 │  └─ test.hbp (legacy/direct)
 └─ README.md
@@ -308,10 +399,10 @@ Under active development.
 Current focus:
 
 - correctness
-- stability
+- robustness / stability
 - performance foundation
 
-Current implementation snapshot (updated: 2026-04-12):
+Current implementation snapshot (updated: 2026-04-18):
 
 - [x] Harbour orchestration layer implemented in `src/hb/hbnum.prg`
 - [x] C core arithmetic implemented in `src/c/hbnum_core.c`
@@ -324,28 +415,42 @@ Current implementation snapshot (updated: 2026-04-12):
 - [x] Mandatory DIV test set implemented in `tests/test.prg`
 - [x] Internal ADD structure test aligned to limb carry at base `2^30`
 - [x] Test output now includes operation, expected and actual values
-- [x] Test output now persists full execution trace to `hbnum_tests.log`
-- [x] Build structure moved to `mk/` and validated (`mk/go64.bat`)
+- [x] Test output now persists full execution trace to `mk/msvc64/log/hbnum_tests.log`
+- [x] Build structure moved to `mk/` and validated (`mk/go64_lib.bat`)
 - [x] Test build structure created in `mk/` and validated (`mk/go64_test.bat`)
 - [x] Harbour compare facade added (`Eq/Ne/Gt/Gte/Lt/Lte/Min/Max`)
 - [x] Harbour modular classes added (`HBNumCompareOps`, `HBNumMathOps`, `HBNumIntegerOps`)
 - [x] C modular file added for advanced math (`src/c/hbnum_core_math.c`)
 - [x] Mod operation implemented and tested
 - [x] PowInt (integer exponent) implemented and tested
+- [x] Precision context implemented with `NIL`-as-unset policy and propagated across returned objects
+- [x] `Div()` now resolves exact terminating decimals when precision is omitted and context precision is unset
+- [x] `Div()` now raises for non-terminating decimals when no explicit/context precision is available
+- [x] `Round/Truncate/Floor/Ceiling` implemented and tested
 - [x] Harbour number-theory class added (`HBNumIntegerOps`)
 - [x] C modular number-theory file added (`src/c/hbnum_core_number_theory.c`)
 - [x] GCD implemented and tested
 - [x] LCM implemented and tested
 - [x] Benchmark/accuracy runner added (`tests/bench_compare.prg`)
-- [x] Benchmark logs/CSV enabled (`hbnum_bench_compare.log` + `hbnum_bench_compare.csv`)
+- [x] Benchmark logs/CSV enabled in `mk/msvc64/log/` (`hbnum_bench_compare.log` + `hbnum_bench_compare.csv`)
 - [x] Benchmark build flow added in `mk/` (`go64_bench*.bat`, `hbnum_bench*.hbp`)
 - [x] Comparative run validated (`hbnum_bench_tbig.exe`) with shared vector set
-- [ ] Full Compare test matrix pending
-- [ ] Full Mod edge-case matrix pending (scale + divisor sign permutations)
-- [ ] Full Pow matrix pending (negative exponent with precision policy)
-- [ ] Full GCD/LCM edge-case matrix pending (very large operands + co-prime stress)
-- [ ] Full comparative matrix pending against broader `tBigNumber` vectors (beyond current shared subset)
-- [ ] Property-based randomized suite pending
+- [x] Robustness/property runner added (`tests/robustness.prg`)
+- [x] Robustness build flow added in `mk/` (`go64_robust.bat`, `hbnum_robust*.hbp`)
+- [x] Compare edge-case unit coverage expanded (sign/scale/zero matrix)
+- [x] Mod edge-case unit coverage expanded (scale + divisor sign permutations)
+- [x] PowInt edge-case unit coverage expanded (decimal base + even negative base + zero base)
+- [x] GCD/LCM unit coverage expanded (very large operands + co-prime stress)
+- [x] Benchmark accuracy vector set expanded in `tests/bench_compare.prg`
+- [x] HBNum-only benchmark rerun validated with expanded vector set (`hbnum_bench.exe`)
+- [x] `HBNum x tBigNumber` comparative run validated with expanded shared-compatible subset (`hbnum_bench_tbig.exe`)
+- [x] Comparative harness split between HBNum-only stress vectors and shared-compatible `tBigNumber` vectors
+- [x] Property/randomized robustness suite validated (`hbnum_robust.exe`)
+- [x] Stress lifecycle + large-constructed robustness suites validated (`hbnum_robust.exe`)
+- [x] Application Verifier smoke run executed against `hbnum_robust.exe` with `Heaps/Handles/Memory/Leak`
+- [ ] Negative exponent policy/coverage still pending for future `Pow`
+- [ ] Full comparative matrix pending against broader `tBigNumber` vectors (HBNum-only shared subset expanded)
+- [ ] Cross-tool memory analysis beyond Application Verifier still pending if extra tooling becomes available
 - [ ] Runtime warning cleanup (`LNK4098`) pending
 ---## 19. FINAL VISION
 
@@ -373,8 +478,9 @@ This project is currently built using Harbour `hbmk2` with MSVC64 toolchain.
 
 4. Harbour `hbmk2` path configured in:
 
-- [mk/go64.bat](mk/go64.bat)
+- [mk/go64_lib.bat](mk/go64_lib.bat)
 - [mk/go64_test.bat](mk/go64_test.bat)
+- [mk/go64_robust.bat](mk/go64_robust.bat)
 
 ```bat
 SET HB_BASE_PATH="F:\harbour_msvc\bin\win\msvc64\hbmk2"
@@ -382,7 +488,7 @@ SET HB_BASE_PATH="F:\harbour_msvc\bin\win\msvc64\hbmk2"
 
 ### 20.2 Build Files and Roles
 
-- [mk/hbnum.hbp](mk/hbnum.hbp): main build file (target, sources, libs, includes)
+- [mk/hbnum.hbp](mk/hbnum.hbp): main library build file (target, sources, libs, includes)
 - [mk/hbnum.hbm](mk/hbnum.hbm): shared build flags and package includes
 - [mk/hbnum.hbc](mk/hbnum.hbc): package-level defaults (`prgflags`, `hbcs`)
 - [mk/hbnum_test.hbp](mk/hbnum_test.hbp): test build file (includes `../tests/test.prg`)
@@ -394,16 +500,22 @@ SET HB_BASE_PATH="F:\harbour_msvc\bin\win\msvc64\hbmk2"
 - [mk/hbnum_bench_tbig.hbp](mk/hbnum_bench_tbig.hbp): comparative benchmark file (HBNum x tBigNumber)
 - [mk/hbnum_bench_tbig.hbm](mk/hbnum_bench_tbig.hbm): shared build flags for comparative mode
 - [mk/hbnum_bench_tbig.hbc](mk/hbnum_bench_tbig.hbc): package defaults for comparative mode
-- [mk/go64.bat](mk/go64.bat): MSVC64 build bootstrap for main target
+- [mk/hbnum_robust.hbp](mk/hbnum_robust.hbp): robustness/property runner build file
+- [mk/hbnum_robust.hbm](mk/hbnum_robust.hbm): shared build flags for robustness mode
+- [mk/hbnum_robust.hbc](mk/hbnum_robust.hbc): package defaults for robustness mode
+- [mk/go64_lib.bat](mk/go64_lib.bat): MSVC64 build bootstrap for main target
 - [mk/go64_test.bat](mk/go64_test.bat): MSVC64 build bootstrap for test target
 - [mk/go64_bench.bat](mk/go64_bench.bat): MSVC64 build bootstrap for HBNum benchmark
 - [mk/go64_bench_tbig.bat](mk/go64_bench_tbig.bat): MSVC64 build bootstrap for comparative benchmark
+- [mk/go64_robust.bat](mk/go64_robust.bat): MSVC64 build bootstrap for robustness/property runner
 
 Current source composition in `*.hbp`:
 
-- Main/test include `src/hb/hbnum.prg`, `src/hb/hbnum_compare_ops.prg`, `src/hb/hbnum_math_ops.prg`, `src/hb/hbnum_integer_ops.prg`
+- Main/test include `src/hb/hbnum.prg`, `src/hb/hbnum_context.prg`, `src/hb/hbnum_compare_ops.prg`, `src/hb/hbnum_math_ops.prg`, `src/hb/hbnum_integer_ops.prg`
 - C sources include `src/c/hbnum_core.c` + `src/c/hbnum_core_math.c` + `src/c/hbnum_core_number_theory.c`
 - Benchmark runner source: `tests/bench_compare.prg`
+- Test/log path helper source: `tests/hbnum_test_paths.prg`
+- Robustness runner source: `tests/robustness.prg`
 - Comparative build links external package: `C:/GitHub/tBigNumber/hbc/_tbignumber.hbc`
 - Comparative build includes local link shim: `tests/tbig_link_stubs.prg` (resolves `HB_MT` dependency)
 
@@ -413,9 +525,10 @@ From project root (recommended):
 
 ```bat
 cd mk
-go64.bat
+go64_lib.bat
 go64_test.bat
 go64_bench.bat
+go64_robust.bat
 ```
 
 Equivalent manual flow:
@@ -425,6 +538,7 @@ call "%ProgramFiles%\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\v
 F:\harbour_msvc\bin\win\msvc64\hbmk2 hbnum.hbp -comp=msvc64
 F:\harbour_msvc\bin\win\msvc64\hbmk2 hbnum_test.hbp -comp=msvc64
 F:\harbour_msvc\bin\win\msvc64\hbmk2 hbnum_bench.hbp -comp=msvc64
+F:\harbour_msvc\bin\win\msvc64\hbmk2 hbnum_robust.hbp -comp=msvc64
 ```
 
 ### 20.4 Expected Output
@@ -432,7 +546,7 @@ F:\harbour_msvc\bin\win\msvc64\hbmk2 hbnum_bench.hbp -comp=msvc64
 - Main target:
 
 ```txt
-mk/msvc64/hbnum.exe
+mk/msvc64/hbnum.lib
 ```
 
 - Test target:
@@ -453,23 +567,35 @@ mk/msvc64/hbnum_bench.exe
 mk/msvc64/hbnum_bench_tbig.exe
 ```
 
+- Robustness target:
+
+```txt
+mk/msvc64/hbnum_robust.exe
+```
+
 - Detailed test log:
 
 ```txt
-mk/hbnum_tests.log
+mk/msvc64/log/hbnum_tests.log
 ```
 
 - Benchmark outputs:
 
 ```txt
-mk/hbnum_bench_compare.log
-mk/hbnum_bench_compare.csv
+mk/msvc64/log/hbnum_bench_compare.log
+mk/msvc64/log/hbnum_bench_compare.csv
 ```
 
-- If `hbnum_test.exe` is executed directly from `mk/msvc64`, log can be created in:
+- Robustness output:
 
 ```txt
-mk/msvc64/hbnum_tests.log
+mk/msvc64/log/hbnum_robust.log
+```
+
+- Logs are always written beside the executable under `log/`, using `hb_ProgName()` to derive the executable directory:
+
+```txt
+mk/msvc64/log/
 ```
 
 - If an old executable exists, batch scripts delete it first.
@@ -477,8 +603,9 @@ mk/msvc64/hbnum_tests.log
 ### 20.5 Known Build Notes
 
 - Current build can emit warning `LNK4098` about runtime library conflict.
-- Even with warning, build currently produces `mk/msvc64/hbnum.exe`.
+- Even with warning, the main build currently produces `mk/msvc64/hbnum.lib`.
 - The message "Não foi possível encontrar ...exe" after `del` can appear on first run and is expected when the old binary does not exist yet.
+- Application Verifier validation of `hbnum_robust.exe` requires administrator privileges to enable/disable checks.
 - Runtime library alignment should be revisited in upcoming iteration.
 
 ---
@@ -487,7 +614,7 @@ mk/msvc64/hbnum_tests.log
 
 - [x] Main build files in `mk/` (`hbnum.hbp/.hbm/.hbc`)
 - [x] Test build files in `mk/` (`hbnum_test.hbp/.hbm/.hbc`)
-- [x] Main build script `mk/go64.bat`
+- [x] Main build script `mk/go64_lib.bat`
 - [x] Test build script `mk/go64_test.bat`
 - [x] First main make executed successfully
 - [x] First test make executed successfully
@@ -496,10 +623,13 @@ mk/msvc64/hbnum_tests.log
 - [x] Main/test build validated after number-theory split (`hbnum_core_number_theory.c` + `HBNumIntegerOps`)
 - [x] Benchmark build files in `mk/` (`hbnum_bench.hbp/.hbm/.hbc`)
 - [x] Comparative benchmark build files in `mk/` (`hbnum_bench_tbig.hbp/.hbm/.hbc`)
+- [x] Robustness build files in `mk/` (`hbnum_robust.hbp/.hbm/.hbc`)
 - [x] Benchmark build script `mk/go64_bench.bat`
 - [x] Comparative benchmark build script `mk/go64_bench_tbig.bat`
+- [x] Robustness build script `mk/go64_robust.bat`
 - [x] Benchmark run validated (`hbnum_bench.exe`)
 - [x] Comparative benchmark run validated (`hbnum_bench_tbig.exe`)
+- [x] Robustness run validated (`hbnum_robust.exe`)
 - [ ] Integrate automated test execution step after build
 
 ---
@@ -542,23 +672,26 @@ Execution phases:
 - [ ] Deterministic prime helpers (start with Miller-Rabin)
 
 3. Decimal behavior toolkit
-- [ ] `Truncate`
-- [ ] `Round` (policy-defined)
-- [ ] `Floor` / `Ceiling`
+- [x] `Truncate`
+- [x] `Round` (current policy: half-up)
+- [x] `Floor` / `Ceiling`
 - [ ] Scale-oriented formatting helpers
 
 4. Advanced numeric toolkit
 - [ ] `Pow` with negative exponent policy + precision
-- [ ] `SQRT` (integer + decimal precision modes)
-- [ ] `nthRoot`
-- [ ] `Log` family (if precision strategy is approved)
+- [x] `SQRT` (integer + decimal precision modes)
+- [x] `nthRoot`
+- [x] `Log` family (context-driven precision strategy)
 
 5. Quality and reliability
 - [x] Comparative benchmark harness baseline (`bench_compare.prg`)
+- [x] Expand first shared benchmark vector subset (decimal/sign/large integer cases)
+- [x] Validate expanded shared-compatible comparative subset in `hbnum_bench_tbig.exe`
 - [ ] Expand comparative vectors based on `tBigNumber` full test inventory
-- [ ] Property/randomized tests
-- [ ] Stress tests (large limbs and scale)
-- [ ] Memory validation with tooling
+- [x] Property/randomized tests
+- [x] Stress tests (large limbs and scale)
+- [x] Memory validation with Application Verifier (`Heaps/Handles/Memory/Leak`)
+- [ ] Cross-tool memory validation beyond Application Verifier
 - [ ] Runtime/link warning cleanup (`LNK4098`)
 
 ### 23.1 Port Coverage Map (From Scratch)
@@ -570,10 +703,12 @@ Implementation rule: reimplement behavior in HBNum architecture (no code copy).
 - [x] Comparison helpers: `Eq/Ne/Gt/Gte/Lt/Lte/Min/Max`
 - [x] Integer power base: `PowInt`
 - [x] Number theory base: `GCD/LCM`
+- [x] Precision context base: `HBNumContext` + unlimited-core precision policy for approximate decimal operations
 - [x] Comparative benchmark baseline: `HBNum x tBigNumber` (shared vector subset)
 - [ ] Number theory extended: `Factorial/Fibonacci/MillerRabin`
-- [ ] Scale/rounding toolkit: `Round/NoRnd/Truncate/Floor/Ceiling`
-- [ ] Root/log toolkit: `SQRT/nthRoot/Log/Ln/Log10`
+- [x] Scale/rounding toolkit core: `Round/Truncate/Floor/Ceiling`
+- [ ] Scale/rounding toolkit extended: `NoRnd` + formatting helpers
+- [x] Root/log toolkit: `SQRT/nthRoot/Log/Ln/Log10`
 - [ ] Conversion toolkit: `D2H/H2D/H2B/B2H/D2B/B2D`
 
 ---
@@ -584,8 +719,9 @@ Build:
 
 ```bat
 cd mk
-go64.bat
+go64_lib.bat
 go64_test.bat
+go64_robust.bat
 ```
 
 Run tests:
@@ -611,6 +747,44 @@ go64_bench_tbig.bat
 msvc64\hbnum_bench_tbig.exe
 ```
 
+Target only the root/log comparative subset and skip performance loops:
+
+```bat
+cd mk
+set HBNUM_BENCH_FILTER=ROOTLOG
+set HBNUM_BENCH_SKIP_PERF=1
+msvc64\hbnum_bench_tbig.exe
+```
+
+Run robustness/property/stress suite:
+
+```bat
+cd mk
+go64_robust.bat
+msvc64\hbnum_robust.exe
+```
+
+Optional robustness tuning:
+
+```bat
+set HBNUM_ROBUST_SEED=20260418
+set HBNUM_ROBUST_INT_LOOPS=1000
+set HBNUM_ROBUST_DECIMAL_LOOPS=1000
+set HBNUM_ROBUST_LARGE_LOOPS=250
+set HBNUM_ROBUST_LIFECYCLE_LOOPS=5000
+msvc64\hbnum_robust.exe
+```
+
+Optional memory-safety smoke with Application Verifier (administrator privileges required):
+
+```bat
+cd mk
+appverif.exe -enable Heaps Handles Memory Leak -for hbnum_robust.exe
+msvc64\hbnum_robust.exe
+appverif.exe -export log -for hbnum_robust.exe -with To=F:\GitHub\hbnum\mk\hbnum_robust_appverif.xml
+appverif.exe -disable * -for hbnum_robust.exe
+```
+
 Prerequisite for comparative mode:
 
 - `C:/GitHub/tBigNumber` available with `hbc/_tbignumber.hbc` and `lib/win/msvc64/_tbigNumber.lib`
@@ -619,28 +793,41 @@ Validate detailed log:
 
 ```bat
 cd mk
-type hbnum_tests.log
+type msvc64\log\hbnum_tests.log
 ```
 
 Validate benchmark artifacts:
 
 ```bat
 cd mk
-type hbnum_bench_compare.log
-type hbnum_bench_compare.csv
+type msvc64\log\hbnum_bench_compare.log
+type msvc64\log\hbnum_bench_compare.csv
+```
+
+Validate robustness artifact:
+
+```bat
+cd mk
+type msvc64\log\hbnum_robust.log
 ```
 
 Minimum acceptance for this iteration:
 
 - [x] Existing Add/Sub/Mul/Div tests still passing
-- [x] New compare helper tests passing
-- [x] New `Mod` tests passing
-- [x] New `PowInt` tests passing
-- [x] New `GCD`/`LCM` tests passing
+- [x] Expanded compare edge-case tests passing
+- [x] Expanded `Mod` edge-case tests passing
+- [x] Expanded `PowInt` edge-case tests passing
+- [x] Expanded `GCD`/`LCM` large/co-prime tests passing
 - [x] No regression in no-mutation behavior checks
 - [x] Benchmark harness generated log + CSV outputs
-- [x] Comparative run validated for shared vector subset (`hbnum_bench_tbig.exe`)
-- [ ] Comparative run validated with full `tBigNumber` vector expansion
+- [x] HBNum-only benchmark/accuracy rerun validated with expanded vector set (`hbnum_bench.exe`)
+- [x] Harbour commit check wrapper passing after touched-file updates (`mk/go64_commit_check.bat`)
+- [x] Comparative run validated with expanded shared-compatible vector set in `hbnum_bench_tbig.exe`
+- [x] Comparative harness now preserves a stricter `tBigNumber` subset while keeping broader HBNum-only stress vectors
+- [x] Property/randomized robustness suite passing in `hbnum_robust.exe`
+- [x] Large/lifecycle stress suites passing in `hbnum_robust.exe`
+- [x] Robustness runner generated detailed log output (`mk/msvc64/log/hbnum_robust.log`)
+- [x] Application Verifier smoke run completed for `hbnum_robust.exe` with no verifier events recorded during the validated run
 
 ---
 
@@ -682,7 +869,7 @@ Repository now includes:
 
 - `.editorconfig` for editor-side normalization (`CRLF`, final newline, trailing whitespace trim)
 - `.gitattributes` for Git-side normalization (`eol=crlf` for text files)
-- `.gitignore` for local-sensitive metadata and generated logs (tests/benchmark)
+- `.gitignore` for local-sensitive metadata and generated logs/verification artifacts
 
 ### 25.4 Quick Validation Commands
 
@@ -704,10 +891,12 @@ $files | ? { -not ([IO.File]::ReadAllText((Join-Path (Get-Location) $_)) -match 
 - [x] `.editorconfig` created and tracked
 - [x] `.gitattributes` created and tracked
 - [x] `.gitignore` updated for sensitive local files (e.g. `.openclaude-profile.json`)
-- [x] Test/benchmark log files ignored by pattern
+- [x] Test/benchmark/robustness log files ignored by pattern
 - [x] Public-domain marker applied to project-owned files in `src/include/tests/mk`
 - [x] Trailing whitespace removed from project-owned text files
 - [x] Text files normalized to `CRLF`
+- [x] Touched files revalidated with no trailing whitespace (`tests/robustness.prg`, `mk/hbnum_robust.hbp`, `mk/hbnum_robust.hbm`, `mk/hbnum_robust.hbc`, `mk/go64_robust.bat`, `.gitignore`, `README.md`)
+- [x] Harbour commit check rerun successfully after this iteration (`mk/go64_commit_check.bat`)
 - [ ] Add CI/pre-commit gate to reject non-standard EOL/whitespace/header regressions
 
 ---

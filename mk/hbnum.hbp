@@ -1,5 +1,7 @@
 # hbnum: Released to Public Domain.
+# HBNum library target (no main program).
 
+-hblib
 -lgdiplus
 {win}-lole32
 {win}-lOleDlg
@@ -25,6 +27,7 @@ hbnum.hbm
 hbnum.hbc
 
 ../src/hb/hbnum.prg
+../src/hb/hbnum_context.prg
 ../src/hb/hbnum_compare_ops.prg
 ../src/hb/hbnum_math_ops.prg
 ../src/hb/hbnum_integer_ops.prg
@@ -32,4 +35,4 @@ hbnum.hbc
 ../src/c/hbnum_core_math.c
 ../src/c/hbnum_core_number_theory.c
 
--o./${hb_comp}/${hb_name}
+-o./${hb_comp}/hbnum

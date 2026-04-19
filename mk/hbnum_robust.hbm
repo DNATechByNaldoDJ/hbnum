@@ -1,9 +1,5 @@
 # hbnum: Released to Public Domain.
 
--hblib
--inc
--cpp
-
 -w3 -es2
 
 xhb.hbc

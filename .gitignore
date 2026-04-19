@@ -15,8 +15,14 @@ hbnum.code-workspace
 # Generated test/benchmark logs (do not version)
 mk/*.log
 mk/msvc64/*.log
+mk/msvc64/log/*.log
+mk/msvc64/log/*.csv
+mk/msvc64/.hbmk/
+mk/msvc64/.hbmk/**
 msvc64/*.log
 tests/*.log
 *tests*.log
 *bench*.log
+*robust*.log
+*appverif*.xml
 _commit.txt

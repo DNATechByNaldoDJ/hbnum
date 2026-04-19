@@ -21,8 +21,8 @@ hbfoxpro.hbc
 {win}-ldflag=/NODEFAULTLIB:msvcrt
 {win}-ldflag+=/NODEFAULTLIB:libucrt
 
-hbnum_bench.hbm
-hbnum_bench.hbc
+hbnum_robust.hbm
+hbnum_robust.hbc
 
 ../src/hb/hbnum.prg
 ../src/hb/hbnum_context.prg
@@ -33,6 +33,6 @@ hbnum_bench.hbc
 ../src/c/hbnum_core_math.c
 ../src/c/hbnum_core_number_theory.c
 ../tests/hbnum_test_paths.prg
-../tests/bench_compare.prg
+../tests/robustness.prg
 
 -o./${hb_comp}/${hb_name}

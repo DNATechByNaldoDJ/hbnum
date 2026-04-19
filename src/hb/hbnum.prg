@@ -15,6 +15,7 @@ hbnum: Released to Public Domain.
 CLASS HBNum
 
    DATA hbNum
+   DATA oContext
 
    METHOD New( xValue )
    METHOD FromString( cValue )
@@ -36,8 +37,17 @@ CLASS HBNum
    METHOD Max( xValue )
    METHOD Mod( xValue )
    METHOD PowInt( nExp )
+   METHOD Sqrt( nPrecision )
+   METHOD NthRoot( nDegree, nPrecision )
+   METHOD Log( xBase, nPrecision )
+   METHOD Log10( nPrecision )
+   METHOD Ln( nPrecision )
    METHOD Gcd( xValue )
    METHOD Lcm( xValue )
+   METHOD Round( nPrecision )
+   METHOD Truncate( nPrecision )
+   METHOD Floor( nPrecision )
+   METHOD Ceiling( nPrecision )
 
    METHOD Abs()
    METHOD Neg()
@@ -45,8 +55,17 @@ CLASS HBNum
 
    METHOD Normalize()
    METHOD ToString()
+   METHOD SetContext( oContext )
+   METHOD GetContext()
+   METHOD SetPrecision( nPrecision )
+   METHOD GetPrecision()
+   METHOD SetRootPrecision( nPrecision )
+   METHOD GetRootPrecision()
+   METHOD SetLogPrecision( nPrecision )
+   METHOD GetLogPrecision()
 
    METHOD _InitHash()
+   METHOD _Spawn()
    METHOD _CoerceOperand( xValue )
    METHOD CompareOps()
    METHOD MathOps()
@@ -87,13 +106,14 @@ METHOD _InitHash() CLASS HBNum
       HBNUM_USED  => 0, ;
       HBNUM_LIMBS => {} ;
    }
+   ::oContext := HBNumGetDefaultContext()
 
 RETURN Self
 
 
 METHOD Clone() CLASS HBNum
 
-   LOCAL oNew := HBNum():New()
+   LOCAL oNew := ::_Spawn()
 
    oNew:hbNum := HBNUM_CORE_CLONE( ::hbNum )
 
@@ -135,10 +155,58 @@ METHOD ToString() CLASS HBNum
 RETURN HBNUM_CORE_TOSTRING( ::hbNum )
 
 
+METHOD SetContext( oContext ) CLASS HBNum
+
+   IF HB_ISOBJECT( oContext ) .AND. oContext:ClassName() == "HBNUMCONTEXT"
+      ::oContext := oContext:Clone()
+   ELSE
+      ::oContext := HBNumGetDefaultContext()
+   ENDIF
+
+RETURN Self
+
+
+METHOD GetContext() CLASS HBNum
+RETURN ::oContext:Clone()
+
+
+METHOD SetPrecision( nPrecision ) CLASS HBNum
+
+   ::oContext:SetPrecision( nPrecision )
+
+RETURN Self
+
+
+METHOD GetPrecision() CLASS HBNum
+RETURN ::oContext:GetPrecision()
+
+
+METHOD SetRootPrecision( nPrecision ) CLASS HBNum
+
+   ::oContext:SetRootPrecision( nPrecision )
+
+RETURN Self
+
+
+METHOD GetRootPrecision() CLASS HBNum
+RETURN ::oContext:GetRootPrecision()
+
+
+METHOD SetLogPrecision( nPrecision ) CLASS HBNum
+
+   ::oContext:SetLogPrecision( nPrecision )
+
+RETURN Self
+
+
+METHOD GetLogPrecision() CLASS HBNum
+RETURN ::oContext:GetLogPrecision()
+
+
 METHOD Add( xValue ) CLASS HBNum
 
    LOCAL oOther := ::_CoerceOperand( xValue )
-   LOCAL oNew := HBNum():New()
+   LOCAL oNew := ::_Spawn()
 
    oNew:hbNum := HBNUM_CORE_ADD( ::hbNum, oOther:hbNum )
 
@@ -148,7 +216,7 @@ RETURN oNew
 METHOD Sub( xValue ) CLASS HBNum
 
    LOCAL oOther := ::_CoerceOperand( xValue )
-   LOCAL oNew := HBNum():New()
+   LOCAL oNew := ::_Spawn()
 
    oNew:hbNum := HBNUM_CORE_SUB( ::hbNum, oOther:hbNum )
 
@@ -158,7 +226,7 @@ RETURN oNew
 METHOD Mul( xValue ) CLASS HBNum
 
    LOCAL oOther := ::_CoerceOperand( xValue )
-   LOCAL oNew := HBNum():New()
+   LOCAL oNew := ::_Spawn()
 
    oNew:hbNum := HBNUM_CORE_MUL( ::hbNum, oOther:hbNum )
 
@@ -168,9 +236,18 @@ RETURN oNew
 METHOD Div( xValue, nPrecision ) CLASS HBNum
 
    LOCAL oOther := ::_CoerceOperand( xValue )
-   LOCAL oNew := HBNum():New()
+   LOCAL oNew := ::_Spawn()
 
-   IF nPrecision == NIL .OR. ! HB_ISNUMERIC( nPrecision )
+   IF nPrecision == NIL
+      nPrecision := ::GetPrecision()
+   ENDIF
+
+   IF nPrecision == NIL
+      oNew:hbNum := HBNUM_CORE_DIV_AUTO( ::hbNum, oOther:hbNum )
+      RETURN oNew
+   ENDIF
+
+   IF ! HB_ISNUMERIC( nPrecision )
       nPrecision := 0
    ENDIF
 
@@ -192,7 +269,7 @@ RETURN HBNUM_CORE_COMPARE( ::hbNum, oOther:hbNum )
 
 METHOD Abs() CLASS HBNum
 
-   LOCAL oNew := HBNum():New()
+   LOCAL oNew := ::_Spawn()
 
    oNew:hbNum := HBNUM_CORE_ABS( ::hbNum )
 
@@ -201,7 +278,7 @@ RETURN oNew
 
 METHOD Neg() CLASS HBNum
 
-   LOCAL oNew := HBNum():New()
+   LOCAL oNew := ::_Spawn()
 
    oNew:hbNum := HBNUM_CORE_NEG( ::hbNum )
 
@@ -212,13 +289,27 @@ METHOD IsZero() CLASS HBNum
 RETURN HBNUM_CORE_ISZERO( ::hbNum )
 
 
+METHOD _Spawn() CLASS HBNum
+
+   LOCAL oNew := HBNum():New()
+
+   oNew:oContext := ::GetContext()
+
+RETURN oNew
+
+
 METHOD _CoerceOperand( xValue ) CLASS HBNum
+
+   LOCAL oValue
 
    IF HB_ISOBJECT( xValue ) .AND. xValue:ClassName() == "HBNUM"
       RETURN xValue
    ENDIF
 
-RETURN HBNum():New( xValue )
+   oValue := HBNum():New( xValue )
+   oValue:oContext := ::GetContext()
+
+RETURN oValue
 
 
 METHOD CompareOps() CLASS HBNum
@@ -271,6 +362,42 @@ RETURN ::MathOps():Mod( xValue )
 
 METHOD PowInt( nExp ) CLASS HBNum
 RETURN ::MathOps():PowInt( nExp )
+
+
+METHOD Sqrt( nPrecision ) CLASS HBNum
+RETURN ::MathOps():Sqrt( nPrecision )
+
+
+METHOD NthRoot( nDegree, nPrecision ) CLASS HBNum
+RETURN ::MathOps():NthRoot( nDegree, nPrecision )
+
+
+METHOD Log( xBase, nPrecision ) CLASS HBNum
+RETURN ::MathOps():Log( xBase, nPrecision )
+
+
+METHOD Log10( nPrecision ) CLASS HBNum
+RETURN ::MathOps():Log10( nPrecision )
+
+
+METHOD Ln( nPrecision ) CLASS HBNum
+RETURN ::MathOps():Ln( nPrecision )
+
+
+METHOD Round( nPrecision ) CLASS HBNum
+RETURN ::MathOps():Round( nPrecision )
+
+
+METHOD Truncate( nPrecision ) CLASS HBNum
+RETURN ::MathOps():Truncate( nPrecision )
+
+
+METHOD Floor( nPrecision ) CLASS HBNum
+RETURN ::MathOps():Floor( nPrecision )
+
+
+METHOD Ceiling( nPrecision ) CLASS HBNum
+RETURN ::MathOps():Ceiling( nPrecision )
 
 
 METHOD Gcd( xValue ) CLASS HBNum

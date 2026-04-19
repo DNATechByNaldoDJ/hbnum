@@ -28,12 +28,14 @@ hbnum_bench_tbig.hbm
 hbnum_bench_tbig.hbc
 
 ../src/hb/hbnum.prg
+../src/hb/hbnum_context.prg
 ../src/hb/hbnum_compare_ops.prg
 ../src/hb/hbnum_math_ops.prg
 ../src/hb/hbnum_integer_ops.prg
 ../src/c/hbnum_core.c
 ../src/c/hbnum_core_math.c
 ../src/c/hbnum_core_number_theory.c
+../tests/hbnum_test_paths.prg
 ../tests/bench_compare.prg
 ../tests/tbig_link_stubs.prg
 

@@ -53,7 +53,7 @@ static HB_BOOL hbnum_native_mod_int( const HBNumNative * pA, const HBNumNative *
    return HB_TRUE;
 }
 
-static HB_BOOL hbnum_native_gcd_int( const HBNumNative * pA, const HBNumNative * pB, HBNumNative * pResult )
+HB_BOOL hbnum_native_gcd_int( const HBNumNative * pA, const HBNumNative * pB, HBNumNative * pResult )
 {
    HBNumNative nX;
    HBNumNative nY;

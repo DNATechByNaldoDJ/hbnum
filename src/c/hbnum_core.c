@@ -320,6 +320,21 @@ static HB_U32 hbnum_mag_div_small_inplace( HB_U32 * pLimbs, HB_SIZE * pnUsed, HB
    return nRemainder;
 }
 
+static HB_U32 hbnum_mag_mod_small( const HB_U32 * pLimbs, HB_SIZE nUsed, HB_U32 nDivisor )
+{
+   HB_U32 nRemainder = 0;
+   HB_SIZE nPos;
+
+   for( nPos = nUsed; nPos > 0; --nPos )
+   {
+      HB_U64 nValue = ( ( HB_U64 ) nRemainder << HBNUM_LIMB_BITS ) | pLimbs[ nPos - 1 ];
+
+      nRemainder = ( HB_U32 ) ( nValue % nDivisor );
+   }
+
+   return nRemainder;
+}
+
 static HB_SIZE hbnum_mag_bitlen( const HB_U32 * pLimbs, HB_SIZE nUsed )
 {
    HB_SIZE nBits = 0;
@@ -633,6 +648,369 @@ HB_BOOL hbnum_native_div( const HBNumNative * pA, const HBNumNative * pB, HB_SIZ
    return HB_TRUE;
 }
 
+static HB_BOOL hbnum_mag_div_pow10( const HB_U32 * pSrc, HB_SIZE nSrcUsed, HB_SIZE nExp, HB_U32 ** ppQuot, HB_SIZE * pnQuotUsed, HB_BOOL * pfDropped, HB_U32 * pnRoundDigit )
+{
+   HB_U32 * pQuot;
+   HB_SIZE nQuotUsed;
+   HB_SIZE nPos;
+   HB_BOOL fDropped = HB_FALSE;
+   HB_U32 nRoundDigit = 0;
+
+   if( nSrcUsed == 0 )
+   {
+      *ppQuot = NULL;
+      *pnQuotUsed = 0;
+      if( pfDropped != NULL )
+         *pfDropped = HB_FALSE;
+      if( pnRoundDigit != NULL )
+         *pnRoundDigit = 0;
+      return HB_TRUE;
+   }
+
+   pQuot = hbnum_limbs_dup( pSrc, nSrcUsed );
+   nQuotUsed = nSrcUsed;
+
+   for( nPos = 0; nPos < nExp; ++nPos )
+   {
+      HB_U32 nRem = hbnum_mag_div_small_inplace( pQuot, &nQuotUsed, 10 );
+
+      if( nRem != 0 )
+         fDropped = HB_TRUE;
+
+      if( nPos + 1 == nExp )
+         nRoundDigit = nRem;
+   }
+
+   *ppQuot = pQuot;
+   *pnQuotUsed = nQuotUsed;
+
+   if( pfDropped != NULL )
+      *pfDropped = fDropped;
+
+   if( pnRoundDigit != NULL )
+      *pnRoundDigit = nRoundDigit;
+
+   return HB_TRUE;
+}
+
+static HB_BOOL hbnum_mag_increment_one( HB_U32 ** ppLimbs, HB_SIZE * pnUsed )
+{
+   HB_U32 nOne = 1;
+   HB_U32 * pOut = NULL;
+   HB_SIZE nOutUsed = 0;
+
+   hbnum_mag_add( *ppLimbs, *pnUsed, &nOne, 1, &pOut, &nOutUsed );
+
+   if( *ppLimbs != NULL )
+      hb_xfree( *ppLimbs );
+
+   *ppLimbs = pOut;
+   *pnUsed = nOutUsed;
+   return HB_TRUE;
+}
+
+static HB_BOOL hbnum_mag_is_one( const HB_U32 * pLimbs, HB_SIZE nUsed )
+{
+   return nUsed == 1 && pLimbs[ 0 ] == 1;
+}
+
+static HB_BOOL hbnum_mag_mul_factor_pow( const HB_U32 * pSrc, HB_SIZE nSrcUsed, HB_U32 nFactor, HB_SIZE nExp, HB_U32 ** ppOut, HB_SIZE * pnOutUsed )
+{
+   HB_U32 * pOut;
+   HB_SIZE nCap;
+   HB_SIZE nUsed;
+   HB_SIZE nPos;
+
+   if( nSrcUsed == 0 )
+   {
+      *ppOut = NULL;
+      *pnOutUsed = 0;
+      return HB_TRUE;
+   }
+
+   if( nExp == 0 )
+   {
+      *ppOut = hbnum_limbs_dup( pSrc, nSrcUsed );
+      *pnOutUsed = nSrcUsed;
+      return HB_TRUE;
+   }
+
+   nCap = nSrcUsed + nExp + 8;
+   pOut = ( HB_U32 * ) hb_xgrab( sizeof( HB_U32 ) * nCap );
+   memset( pOut, 0, sizeof( HB_U32 ) * nCap );
+   memcpy( pOut, pSrc, sizeof( HB_U32 ) * nSrcUsed );
+   nUsed = nSrcUsed;
+
+   for( nPos = 0; nPos < nExp; ++nPos )
+   {
+      if( !hbnum_mag_mul_small_inplace( pOut, &nUsed, nCap, nFactor ) )
+      {
+         hb_xfree( pOut );
+         *ppOut = NULL;
+         *pnOutUsed = 0;
+         return HB_FALSE;
+      }
+   }
+
+   while( nUsed > 0 && pOut[ nUsed - 1 ] == 0 )
+      --nUsed;
+
+   *ppOut = pOut;
+   *pnOutUsed = nUsed;
+   return HB_TRUE;
+}
+
+HB_BOOL hbnum_native_truncate( const HBNumNative * pA, HB_SIZE nPrecision, HBNumNative * pResult )
+{
+   HB_SIZE nDrop;
+   HB_U32 * pQuot = NULL;
+   HB_SIZE nQuotUsed = 0;
+
+   hbnum_native_init( pResult );
+
+   if( pA->used == 0 )
+      return HB_TRUE;
+
+   if( pA->scale <= nPrecision )
+      return hbnum_native_clone( pA, pResult );
+
+   nDrop = pA->scale - nPrecision;
+   hbnum_mag_div_pow10( pA->limbs, pA->used, nDrop, &pQuot, &nQuotUsed, NULL, NULL );
+
+   pResult->sign = pA->sign;
+   pResult->scale = nPrecision;
+   pResult->used = nQuotUsed;
+   pResult->limbs = pQuot;
+   hbnum_native_normalize( pResult );
+   return HB_TRUE;
+}
+
+HB_BOOL hbnum_native_round( const HBNumNative * pA, HB_SIZE nPrecision, HBNumNative * pResult )
+{
+   HB_SIZE nDrop;
+   HB_U32 * pQuot = NULL;
+   HB_SIZE nQuotUsed = 0;
+   HB_U32 nRoundDigit = 0;
+
+   hbnum_native_init( pResult );
+
+   if( pA->used == 0 )
+      return HB_TRUE;
+
+   if( pA->scale <= nPrecision )
+      return hbnum_native_clone( pA, pResult );
+
+   nDrop = pA->scale - nPrecision;
+   hbnum_mag_div_pow10( pA->limbs, pA->used, nDrop, &pQuot, &nQuotUsed, NULL, &nRoundDigit );
+
+   if( nRoundDigit >= 5 )
+      hbnum_mag_increment_one( &pQuot, &nQuotUsed );
+
+   pResult->sign = pA->sign;
+   pResult->scale = nPrecision;
+   pResult->used = nQuotUsed;
+   pResult->limbs = pQuot;
+   hbnum_native_normalize( pResult );
+   return HB_TRUE;
+}
+
+HB_BOOL hbnum_native_floor( const HBNumNative * pA, HB_SIZE nPrecision, HBNumNative * pResult )
+{
+   HB_SIZE nDrop;
+   HB_U32 * pQuot = NULL;
+   HB_SIZE nQuotUsed = 0;
+   HB_BOOL fDropped = HB_FALSE;
+
+   hbnum_native_init( pResult );
+
+   if( pA->used == 0 )
+      return HB_TRUE;
+
+   if( pA->scale <= nPrecision )
+      return hbnum_native_clone( pA, pResult );
+
+   nDrop = pA->scale - nPrecision;
+   hbnum_mag_div_pow10( pA->limbs, pA->used, nDrop, &pQuot, &nQuotUsed, &fDropped, NULL );
+
+   if( pA->sign < 0 && fDropped )
+      hbnum_mag_increment_one( &pQuot, &nQuotUsed );
+
+   pResult->sign = pA->sign;
+   pResult->scale = nPrecision;
+   pResult->used = nQuotUsed;
+   pResult->limbs = pQuot;
+   hbnum_native_normalize( pResult );
+   return HB_TRUE;
+}
+
+HB_BOOL hbnum_native_ceiling( const HBNumNative * pA, HB_SIZE nPrecision, HBNumNative * pResult )
+{
+   HB_SIZE nDrop;
+   HB_U32 * pQuot = NULL;
+   HB_SIZE nQuotUsed = 0;
+   HB_BOOL fDropped = HB_FALSE;
+
+   hbnum_native_init( pResult );
+
+   if( pA->used == 0 )
+      return HB_TRUE;
+
+   if( pA->scale <= nPrecision )
+      return hbnum_native_clone( pA, pResult );
+
+   nDrop = pA->scale - nPrecision;
+   hbnum_mag_div_pow10( pA->limbs, pA->used, nDrop, &pQuot, &nQuotUsed, &fDropped, NULL );
+
+   if( pA->sign > 0 && fDropped )
+      hbnum_mag_increment_one( &pQuot, &nQuotUsed );
+
+   pResult->sign = pA->sign;
+   pResult->scale = nPrecision;
+   pResult->used = nQuotUsed;
+   pResult->limbs = pQuot;
+   hbnum_native_normalize( pResult );
+   return HB_TRUE;
+}
+
+static HB_BOOL hbnum_native_div_exact( const HBNumNative * pA, const HBNumNative * pB, HBNumNative * pResult )
+{
+   HBNumNative nNum;
+   HBNumNative nDen;
+   HBNumNative nG;
+   HBNumNative nTmp;
+   HB_U32 * pScaled = NULL;
+   HB_SIZE nScaledUsed = 0;
+   HB_SIZE nTwos = 0;
+   HB_SIZE nFives = 0;
+   HB_SIZE nScale;
+
+   hbnum_native_init( pResult );
+   hbnum_native_init( &nNum );
+   hbnum_native_init( &nDen );
+   hbnum_native_init( &nG );
+   hbnum_native_init( &nTmp );
+
+   if( pB->used == 0 )
+      return HB_FALSE;
+
+   if( pA->used == 0 )
+      return HB_TRUE;
+
+   hbnum_native_clone( pA, &nNum );
+   hbnum_native_clone( pB, &nDen );
+
+   if( nNum.used > 0 )
+      nNum.sign = 1;
+   if( nDen.used > 0 )
+      nDen.sign = 1;
+
+   if( pB->scale > pA->scale )
+   {
+      if( !hbnum_mag_mul_pow10( nNum.limbs, nNum.used, pB->scale - pA->scale, &pScaled, &nScaledUsed ) )
+         goto cleanup_fail;
+
+      hb_xfree( nNum.limbs );
+      nNum.limbs = pScaled;
+      nNum.used = nScaledUsed;
+      pScaled = NULL;
+      nScaledUsed = 0;
+   }
+   else if( pA->scale > pB->scale )
+   {
+      if( !hbnum_mag_mul_pow10( nDen.limbs, nDen.used, pA->scale - pB->scale, &pScaled, &nScaledUsed ) )
+         goto cleanup_fail;
+
+      hb_xfree( nDen.limbs );
+      nDen.limbs = pScaled;
+      nDen.used = nScaledUsed;
+      pScaled = NULL;
+      nScaledUsed = 0;
+   }
+
+   nNum.scale = 0;
+   nDen.scale = 0;
+
+   hbnum_native_gcd_int( &nNum, &nDen, &nG );
+
+   if( nG.used > 0 && ! hbnum_mag_is_one( nG.limbs, nG.used ) )
+   {
+      hbnum_native_div( &nNum, &nG, 0, &nTmp );
+      hbnum_native_release( &nNum );
+      nNum = nTmp;
+      hbnum_native_init( &nTmp );
+
+      hbnum_native_div( &nDen, &nG, 0, &nTmp );
+      hbnum_native_release( &nDen );
+      nDen = nTmp;
+      hbnum_native_init( &nTmp );
+   }
+
+   while( nDen.used > 0 && hbnum_mag_mod_small( nDen.limbs, nDen.used, 2 ) == 0 )
+   {
+      hbnum_mag_div_small_inplace( nDen.limbs, &nDen.used, 2 );
+      ++nTwos;
+   }
+
+   while( nDen.used > 0 && hbnum_mag_mod_small( nDen.limbs, nDen.used, 5 ) == 0 )
+   {
+      hbnum_mag_div_small_inplace( nDen.limbs, &nDen.used, 5 );
+      ++nFives;
+   }
+
+   if( ! hbnum_mag_is_one( nDen.limbs, nDen.used ) )
+      goto cleanup_fail;
+
+   nScale = nTwos > nFives ? nTwos : nFives;
+
+   if( nTwos < nScale )
+   {
+      if( !hbnum_mag_mul_factor_pow( nNum.limbs, nNum.used, 2, nScale - nTwos, &pScaled, &nScaledUsed ) )
+         goto cleanup_fail;
+
+      hb_xfree( nNum.limbs );
+      nNum.limbs = pScaled;
+      nNum.used = nScaledUsed;
+      pScaled = NULL;
+      nScaledUsed = 0;
+   }
+
+   if( nFives < nScale )
+   {
+      if( !hbnum_mag_mul_factor_pow( nNum.limbs, nNum.used, 5, nScale - nFives, &pScaled, &nScaledUsed ) )
+         goto cleanup_fail;
+
+      hb_xfree( nNum.limbs );
+      nNum.limbs = pScaled;
+      nNum.used = nScaledUsed;
+      pScaled = NULL;
+      nScaledUsed = 0;
+   }
+
+   pResult->sign = pA->sign == pB->sign ? 1 : -1;
+   pResult->scale = nScale;
+   pResult->used = nNum.used;
+   pResult->limbs = nNum.limbs;
+   nNum.limbs = NULL;
+   nNum.used = 0;
+   hbnum_native_normalize( pResult );
+
+   hbnum_native_release( &nNum );
+   hbnum_native_release( &nDen );
+   hbnum_native_release( &nG );
+   hbnum_native_release( &nTmp );
+   return HB_TRUE;
+
+cleanup_fail:
+   if( pScaled != NULL )
+      hb_xfree( pScaled );
+   hbnum_native_release( &nNum );
+   hbnum_native_release( &nDen );
+   hbnum_native_release( &nG );
+   hbnum_native_release( &nTmp );
+   hbnum_native_init( pResult );
+   return HB_FALSE;
+}
+
 int hbnum_native_compare( const HBNumNative * pA, const HBNumNative * pB )
 {
    HBNumNative nAA;
@@ -674,7 +1052,7 @@ static char * hbnum_strdup( const char * szText )
    return szCopy;
 }
 
-static char * hbnum_native_to_string( const HBNumNative * pNum )
+char * hbnum_native_to_string( const HBNumNative * pNum )
 {
    HB_U32 * pWork;
    HB_SIZE nWorkUsed;
@@ -1153,6 +1531,41 @@ HB_FUNC( HBNUM_CORE_DIV )
    {
       hbnum_native_init( &nResult );
       hb_errRT_BASE( EG_ZERODIV, 0, "Division by zero", HB_ERR_FUNCNAME, 0 );
+   }
+
+   pHashResult = hbnum_native_to_hash( &nResult );
+   hb_itemReturnRelease( pHashResult );
+
+   hbnum_native_release( &nA );
+   hbnum_native_release( &nB );
+   hbnum_native_release( &nResult );
+}
+
+HB_FUNC( HBNUM_CORE_DIV_AUTO )
+{
+   PHB_ITEM pA = hb_param( 1, HB_IT_HASH );
+   PHB_ITEM pB = hb_param( 2, HB_IT_HASH );
+   HBNumNative nA;
+   HBNumNative nB;
+   HBNumNative nResult;
+   PHB_ITEM pHashResult;
+   HB_BOOL fOk;
+
+   hbnum_native_init( &nA );
+   hbnum_native_init( &nB );
+   hbnum_native_init( &nResult );
+
+   hbnum_native_from_hash( pA, &nA );
+   hbnum_native_from_hash( pB, &nB );
+
+   fOk = hbnum_native_div_exact( &nA, &nB, &nResult );
+   if( !fOk )
+   {
+      hbnum_native_init( &nResult );
+      if( nB.used == 0 )
+         hb_errRT_BASE( EG_ZERODIV, 0, "Division by zero", HB_ERR_FUNCNAME, 0 );
+      else
+         hb_errRT_BASE( EG_ARG, 0, "Non-terminating decimal division requires explicit precision or HBNumContext precision", HB_ERR_FUNCNAME, 0 );
    }
 
    pHashResult = hbnum_native_to_hash( &nResult );

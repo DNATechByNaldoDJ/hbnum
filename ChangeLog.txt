@@ -2,8 +2,53 @@
      * Change  ! Fix  % Optimize  + Add  - Remove  ; Comment
    Entries may not always be in chronological/commit order.
    See license at the end of file.
-   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Initial project import and repo configs)"
+   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add robustness runner and precision context)"
 */
+
+2026-04-19 10:39 UTC naldodj (Add robustness runner and precision context)
+  Introduce a precision/context layer and robustness/property testing flow.
+  Add HBNumContext support (Harbour sources, new HBNum API methods) and new core exports for sqrt/nthroot/log/round/trunc/floor/ceiling in include/hbnum.h.
+  Add robustness test sources (tests/robustness.prg, tests/hbnum_test_paths.prg) and scripts/targets (mk/hbnum_robust.* and mk/go64_robust.bat);
+  update benchmark build to include the context and test path helper.
+  Update mk/hbnum.hbp to produce a library target (hbnum.lib) and add go64_lib.bat rename, adjust bench hbp to include context.
+  README.md refreshed with robustness, logging (mk/msvc64/log/) and precision policy details; .gitignore extended to cover new logs/verification artifacts.
+  Also add prebuilt msvc64 artifacts and update benchmark CSV with recent runs.
+    + mk/go64_robust.bat
+    + mk/hbnum_robust.hbc
+    + mk/hbnum_robust.hbm
+    + mk/hbnum_robust.hbp
+    + mk/msvc64/hbnum_robust.exe
+    + mk/msvc64/hbnum.lib
+    + src/hb/hbnum_context.prg
+    + tests/hbnum_test_paths.prg
+    + tests/robustness.prg
+    - mk/msvc64/hbnum_bench_compare.csv
+    - mk/msvc64/hbnum.exe
+    - msvc64/hb_totvs_mcp.exe
+    - msvc64/hbnum.exe
+    * .gitignore
+    * include/hbnum.h
+    * mk/hbnum_bench_compare.csv
+    * mk/hbnum_bench_tbig.hbp
+    * mk/hbnum_bench.hbp
+    * mk/hbnum_test.hbp
+    * mk/hbnum.hbc
+    * mk/hbnum.hbm
+    * mk/hbnum.hbp
+    * mk/msvc64/hbnum_bench_tbig.exe
+    * mk/msvc64/hbnum_bench.exe
+    * mk/msvc64/hbnum_test.exe
+    * README.md
+    * src/c/hbnum_core_math.c
+    * src/c/hbnum_core_number_theory.c
+    * src/c/hbnum_core.c
+    * src/c/hbnum_native_internal.h
+    * src/hb/hbnum_math_ops.prg
+    * src/hb/hbnum.prg
+    * tests/bench_compare.prg
+    * tests/test.hbp
+    * tests/test.prg
+    * mk/go64.bat -> mk/go64_lib.bat
 
 2026-04-13 19:56 UTC naldodj (Initial project import and repo configs)
   Initial project import and repo configs

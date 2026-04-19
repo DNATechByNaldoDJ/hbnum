@@ -32,9 +32,15 @@ HB_BOOL hbnum_native_add( const HBNumNative * pA, const HBNumNative * pB, HBNumN
 HB_BOOL hbnum_native_sub( const HBNumNative * pA, const HBNumNative * pB, HBNumNative * pResult );
 HB_BOOL hbnum_native_mul( const HBNumNative * pA, const HBNumNative * pB, HBNumNative * pResult );
 HB_BOOL hbnum_native_div( const HBNumNative * pA, const HBNumNative * pB, HB_SIZE nPrecision, HBNumNative * pResult );
+HB_BOOL hbnum_native_round( const HBNumNative * pA, HB_SIZE nPrecision, HBNumNative * pResult );
+HB_BOOL hbnum_native_truncate( const HBNumNative * pA, HB_SIZE nPrecision, HBNumNative * pResult );
+HB_BOOL hbnum_native_floor( const HBNumNative * pA, HB_SIZE nPrecision, HBNumNative * pResult );
+HB_BOOL hbnum_native_ceiling( const HBNumNative * pA, HB_SIZE nPrecision, HBNumNative * pResult );
+HB_BOOL hbnum_native_gcd_int( const HBNumNative * pA, const HBNumNative * pB, HBNumNative * pResult );
 int hbnum_native_compare( const HBNumNative * pA, const HBNumNative * pB );
 
 HB_BOOL hbnum_native_from_hash( PHB_ITEM pHash, HBNumNative * pOut );
 PHB_ITEM hbnum_native_to_hash( const HBNumNative * pNum );
+char * hbnum_native_to_string( const HBNumNative * pNum );
 
 #endif
