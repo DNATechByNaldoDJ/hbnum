@@ -44,6 +44,11 @@ CLASS HBNum
    METHOD Ln( nPrecision )
    METHOD Gcd( xValue )
    METHOD Lcm( xValue )
+   METHOD Factorial()
+   METHOD Fi()
+   METHOD MillerRabin( xIterations )
+   METHOD Randomize( xMin, xMax )
+   METHOD Fibonacci()
    METHOD Round( nPrecision )
    METHOD Truncate( nPrecision )
    METHOD Floor( nPrecision )
@@ -406,3 +411,23 @@ RETURN ::IntegerOps():Gcd( xValue )
 
 METHOD Lcm( xValue ) CLASS HBNum
 RETURN ::IntegerOps():Lcm( xValue )
+
+
+METHOD Factorial() CLASS HBNum
+RETURN ::IntegerOps():Factorial()
+
+
+METHOD Fi() CLASS HBNum
+RETURN ::IntegerOps():Fi()
+
+
+METHOD MillerRabin( xIterations ) CLASS HBNum
+RETURN ::IntegerOps():MillerRabin( xIterations )
+
+
+METHOD Randomize( xMin, xMax ) CLASS HBNum
+RETURN ::IntegerOps():Randomize( xMin, xMax )
+
+
+METHOD Fibonacci() CLASS HBNum
+RETURN ::IntegerOps():Fibonacci()

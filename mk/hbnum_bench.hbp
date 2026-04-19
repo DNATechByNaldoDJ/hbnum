@@ -32,6 +32,7 @@ hbnum_bench.hbc
 ../src/c/hbnum_core.c
 ../src/c/hbnum_core_math.c
 ../src/c/hbnum_core_number_theory.c
+../src/c/hbnum_core_integer_extra.c
 ../tests/hbnum_test_paths.prg
 ../tests/bench_compare.prg
 

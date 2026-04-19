@@ -2,8 +2,30 @@
      * Change  ! Fix  % Optimize  + Add  - Remove  ; Comment
    Entries may not always be in chronological/commit order.
    See license at the end of file.
-   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add robustness runner and precision context)"
+   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add integer ops: factorial, fi, MR, random)"
 */
+
+2026-04-19 13:12 UTC naldodj (Add integer ops: factorial, fi, MR, random)
+  Introduce integer-only utilities and expose them to HBNum: add new C source src/c/hbnum_core_integer_extra.c implementing Factorial, Fi (Euler's totient), MillerRabin, Randomize and related helpers (pow_mod, random range, factorial loop, etc.). Declare new HB_FUNCs in include/hbnum.h and include the new source in build scripts (mk/*.hbp). Expose methods on HBNum and HBNumIntegerOps (Factorial, Fi, MillerRabin, Randomize, Fibonacci) via updates to src/hb/hbnum.prg and src/hb/hbnum_integer_ops.prg.
+  Update benchmarks/tests (tests/bench_compare.prg) to add tbig-related configs and utility helpers.
+  Built artifacts in mk/msvc64/* were updated accordingly.
+    + src/c/hbnum_core_integer_extra.c
+    * ChangeLog.txt
+    * include/hbnum.h
+    * mk/hbnum_bench_tbig.hbp
+    * mk/hbnum_bench.hbp
+    * mk/hbnum_robust.hbp
+    * mk/hbnum_test.hbp
+    * mk/hbnum.hbp
+    * mk/msvc64/hbnum_bench_tbig.exe
+    * mk/msvc64/hbnum_bench.exe
+    * mk/msvc64/hbnum_robust.exe
+    * mk/msvc64/hbnum_test.exe
+    * mk/msvc64/hbnum.lib
+    * src/hb/hbnum_integer_ops.prg
+    * src/hb/hbnum.prg
+    * tests/bench_compare.prg
+    * tests/test.prg
 
 2026-04-19 10:39 UTC naldodj (Add robustness runner and precision context)
   Introduce a precision/context layer and robustness/property testing flow.

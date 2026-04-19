@@ -34,5 +34,6 @@ hbnum.hbc
 ../src/c/hbnum_core.c
 ../src/c/hbnum_core_math.c
 ../src/c/hbnum_core_number_theory.c
+../src/c/hbnum_core_integer_extra.c
 
 -o./${hb_comp}/hbnum

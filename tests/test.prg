@@ -67,6 +67,19 @@ STATIC FUNCTION __ExpectErrorContains( bAction, cExpected, cOperation )
    __SetTrace( cOperation, cExpected, cActual )
 RETURN lRaised .AND. cExpected $ cActual
 
+STATIC FUNCTION __JoinTextArray( aValues )
+   LOCAL cOut := ""
+   LOCAL nAt
+
+   FOR nAt := 1 TO Len( aValues )
+      IF nAt > 1
+         cOut += ","
+      ENDIF
+      cOut += aValues[ nAt ]
+   NEXT
+
+RETURN cOut
+
 FUNCTION Main()
    LOCAL lOk := .T.
 
@@ -189,9 +202,25 @@ FUNCTION Main()
    lOk := __RunTest( "Test_Lcm_Coprime", Test_Lcm_Coprime() ) .AND. lOk
    lOk := __RunTest( "Test_Lcm_LargeCommonFactor", Test_Lcm_LargeCommonFactor() ) .AND. lOk
    lOk := __RunTest( "Test_Lcm_NoMutation", Test_Lcm_NoMutation() ) .AND. lOk
+   lOk := __RunTest( "Test_Factorial_Zero", Test_Factorial_Zero() ) .AND. lOk
+   lOk := __RunTest( "Test_Factorial_100", Test_Factorial_100() ) .AND. lOk
+   lOk := __RunTest( "Test_Factorial_NoMutation", Test_Factorial_NoMutation() ) .AND. lOk
+   lOk := __RunTest( "Test_Factorial_Negative_Error", Test_Factorial_Negative_Error() ) .AND. lOk
+   lOk := __RunTest( "Test_Fi_Simple", Test_Fi_Simple() ) .AND. lOk
+   lOk := __RunTest( "Test_Fi_Prime", Test_Fi_Prime() ) .AND. lOk
+   lOk := __RunTest( "Test_Fi_NoMutation", Test_Fi_NoMutation() ) .AND. lOk
+   lOk := __RunTest( "Test_Fi_Negative_Error", Test_Fi_Negative_Error() ) .AND. lOk
+   lOk := __RunTest( "Test_MillerRabin_Prime_Mersenne127", Test_MillerRabin_Prime_Mersenne127() ) .AND. lOk
+   lOk := __RunTest( "Test_MillerRabin_Composite_2047", Test_MillerRabin_Composite_2047() ) .AND. lOk
+   lOk := __RunTest( "Test_Randomize_DefaultRange", Test_Randomize_DefaultRange() ) .AND. lOk
+   lOk := __RunTest( "Test_Randomize_CustomLargeRange", Test_Randomize_CustomLargeRange() ) .AND. lOk
+   lOk := __RunTest( "Test_Fibonacci_Threshold10", Test_Fibonacci_Threshold10() ) .AND. lOk
+   lOk := __RunTest( "Test_Fibonacci_Threshold1000000", Test_Fibonacci_Threshold1000000() ) .AND. lOk
 
    ? "== tBigNtst COMPAT TESTS =="
    __LogLine( "GROUP", "== tBigNtst COMPAT TESTS ==", HB_LOG_INFO )
+   lOk := __RunTest( "Test_TBigNtst19_Factorial_100", Test_TBigNtst19_Factorial_100() ) .AND. lOk
+   lOk := __RunTest( "Test_TBigNtst24_Fi_97", Test_TBigNtst24_Fi_97() ) .AND. lOk
    lOk := __RunTest( "Test_TBigNtst_Add_RepeatedDelta", Test_TBigNtst_Add_RepeatedDelta() ) .AND. lOk
    lOk := __RunTest( "Test_TBigNtst_Add_PaddedZeroSeed", Test_TBigNtst_Add_PaddedZeroSeed() ) .AND. lOk
    lOk := __RunTest( "Test_TBigNtst_Add_NegativeRepeatedDelta", Test_TBigNtst_Add_NegativeRepeatedDelta() ) .AND. lOk
@@ -202,6 +231,12 @@ FUNCTION Main()
    lOk := __RunTest( "Test_TBigNtst_Sqrt_PerfectSquare", Test_TBigNtst_Sqrt_PerfectSquare() ) .AND. lOk
    lOk := __RunTest( "Test_TBigNtst_Log_PowerOfTenInventory", Test_TBigNtst_Log_PowerOfTenInventory() ) .AND. lOk
    lOk := __RunTest( "Test_TBigNtst_Ln_WithPrecision", Test_TBigNtst_Ln_WithPrecision() ) .AND. lOk
+   lOk := __RunTest( "Test_TBigNtst34_MillerRabin_Mersenne127", Test_TBigNtst34_MillerRabin_Mersenne127() ) .AND. lOk
+   lOk := __RunTest( "Test_TBigNtst35_Randomize_LargeBounds", Test_TBigNtst35_Randomize_LargeBounds() ) .AND. lOk
+   lOk := __RunTest( "Test_TBigNtst36_Fibonacci_1000", Test_TBigNtst36_Fibonacci_1000() ) .AND. lOk
+   lOk := __RunTest( "Test_TBigNtst37_Fibonacci_Mersenne31", Test_TBigNtst37_Fibonacci_Mersenne31() ) .AND. lOk
+   lOk := __RunTest( "Test_TBigNtst38_BigMersenne127", Test_TBigNtst38_BigMersenne127() ) .AND. lOk
+   lOk := __RunTest( "Test_TBigNtst39_BigGoogol", Test_TBigNtst39_BigGoogol() ) .AND. lOk
 
    IF lOk
       ? "ALL TESTS PASSED"
@@ -1416,3 +1451,205 @@ FUNCTION Test_TBigNtst_Ln_WithPrecision()
 
    __SetTrace( "tBigNtst33 port: ln(10^30, 12)", "69.077552789821", cActual )
 RETURN cActual == "69.077552789821"
+
+
+FUNCTION Test_Factorial_Zero()
+   LOCAL oValue := HBNum():New( "0" )
+   LOCAL cActual := oValue:Factorial():ToString()
+
+   __SetTrace( "0!", "1", cActual )
+RETURN cActual == "1"
+
+
+FUNCTION Test_Factorial_100()
+   LOCAL oValue := HBNum():New( "100" )
+   LOCAL cExpected := "93326215443944152681699238856266700490715968264381621468592963895217599993229915608941463976156518286253697920827223758251185210916864000000000000000000000000"
+   LOCAL cActual := oValue:Factorial():ToString()
+
+   __SetTrace( "100!", cExpected, cActual )
+RETURN cActual == cExpected
+
+
+FUNCTION Test_Factorial_NoMutation()
+   LOCAL oValue := HBNum():New( "25" )
+   LOCAL cBefore := oValue:ToString()
+   LOCAL cExpected := "15511210043330985984000000"
+   LOCAL oResult := oValue:Factorial()
+   LOCAL lOk := oValue:ToString() == cBefore .AND. oResult:ToString() == cExpected
+   LOCAL cActual := "input=" + oValue:ToString() + ", result=" + oResult:ToString()
+
+   __SetTrace( "imutabilidade de entrada em 25!", "input=25, result=" + cExpected, cActual )
+RETURN lOk
+
+
+FUNCTION Test_Factorial_Negative_Error()
+RETURN __ExpectErrorContains( ;
+   {|| HBNum():New( "-5" ):Factorial() }, ;
+   "Factorial requires non-negative operand", ;
+   "(-5)!" )
+
+
+FUNCTION Test_Fi_Simple()
+   LOCAL oValue := HBNum():New( "36" )
+   LOCAL cActual := oValue:Fi():ToString()
+
+   __SetTrace( "phi(36)", "12", cActual )
+RETURN cActual == "12"
+
+
+FUNCTION Test_Fi_Prime()
+   LOCAL oValue := HBNum():New( "97" )
+   LOCAL cActual := oValue:Fi():ToString()
+
+   __SetTrace( "phi(97)", "96", cActual )
+RETURN cActual == "96"
+
+
+FUNCTION Test_Fi_NoMutation()
+   LOCAL oValue := HBNum():New( "84" )
+   LOCAL cBefore := oValue:ToString()
+   LOCAL oResult := oValue:Fi()
+   LOCAL lOk := oValue:ToString() == cBefore .AND. oResult:ToString() == "24"
+   LOCAL cActual := "input=" + oValue:ToString() + ", result=" + oResult:ToString()
+
+   __SetTrace( "imutabilidade de entrada em phi(84)", "input=84, result=24", cActual )
+RETURN lOk
+
+
+FUNCTION Test_Fi_Negative_Error()
+RETURN __ExpectErrorContains( ;
+   {|| HBNum():New( "-84" ):Fi() }, ;
+   "Fi requires non-negative operand", ;
+   "phi(-84)" )
+
+
+FUNCTION Test_MillerRabin_Prime_Mersenne127()
+   LOCAL oValue := HBNum():New( "2" ):PowInt( 127 ):Sub( "1" )
+   LOCAL lActual := oValue:MillerRabin( 5 )
+   LOCAL cActual := IIf( lActual, ".T.", ".F." )
+
+   __SetTrace( "MillerRabin(2^127 - 1, 5)", ".T.", cActual )
+RETURN lActual
+
+
+FUNCTION Test_MillerRabin_Composite_2047()
+   LOCAL oValue := HBNum():New( "2047" )
+   LOCAL lActual := oValue:MillerRabin( 2 )
+   LOCAL cActual := IIf( lActual, ".T.", ".F." )
+
+   __SetTrace( "MillerRabin(2047, 2)", ".F.", cActual )
+RETURN ! lActual
+
+
+FUNCTION Test_Randomize_DefaultRange()
+   LOCAL oMin := HBNum():New( "1" )
+   LOCAL oMax := HBNum():New( "99999999999999999999999999999999" )
+   LOCAL oValue := HBNum():New():Randomize()
+   LOCAL cActual := oValue:ToString()
+   LOCAL lOk := At( ".", cActual ) == 0 .AND. oValue:Gte( oMin ) .AND. oValue:Lte( oMax )
+
+   __SetTrace( "Randomize() default range", "integer in [1, 99999999999999999999999999999999]", cActual )
+RETURN lOk
+
+
+FUNCTION Test_Randomize_CustomLargeRange()
+   LOCAL cMin := "100000000000000000000000000000000000000000000000000"
+   LOCAL cMax := "999999999999999999999999999999999999999999999999999999999999"
+   LOCAL oMin := HBNum():New( cMin )
+   LOCAL oMax := HBNum():New( cMax )
+   LOCAL nTry
+   LOCAL oValue
+   LOCAL cActual := ""
+   LOCAL lOk := .T.
+
+   FOR nTry := 1 TO 3
+      oValue := HBNum():New():Randomize( oMin, oMax )
+      cActual += IIf( Empty( cActual ), "", "," ) + oValue:ToString()
+      lOk := lOk .AND. At( ".", oValue:ToString() ) == 0 .AND. oValue:Gte( oMin ) .AND. oValue:Lte( oMax )
+   NEXT
+
+   __SetTrace( "Randomize([10^50, 10^60-1]) x3", "all integer values inside range", cActual )
+RETURN lOk
+
+
+FUNCTION Test_Fibonacci_Threshold10()
+   LOCAL cExpected := "0,1,1,2,3,5,8"
+   LOCAL cActual := __JoinTextArray( HBNum():New( "10" ):Fibonacci() )
+
+   __SetTrace( "Fibonacci(<10)", cExpected, cActual )
+RETURN cActual == cExpected
+
+
+FUNCTION Test_Fibonacci_Threshold1000000()
+   LOCAL aFib := HBNum():New( "1000000" ):Fibonacci()
+   LOCAL lOk := Len( aFib ) == 31 .AND. aFib[ Len( aFib ) ] == "832040"
+   LOCAL cActual := "len=" + hb_ntos( Len( aFib ) ) + ", last=" + aFib[ Len( aFib ) ]
+
+   __SetTrace( "Fibonacci(<1000000)", "len=31, last=832040", cActual )
+RETURN lOk
+
+
+FUNCTION Test_TBigNtst19_Factorial_100()
+   LOCAL cExpected := "93326215443944152681699238856266700490715968264381621468592963895217599993229915608941463976156518286253697920827223758251185210916864000000000000000000000000"
+   LOCAL cActual := HBNum():New( "100" ):Factorial():ToString()
+
+   __SetTrace( "tBigNtst19 port: 100!", cExpected, cActual )
+RETURN cActual == cExpected
+
+
+FUNCTION Test_TBigNtst24_Fi_97()
+   LOCAL cActual := HBNum():New( "97" ):Fi():ToString()
+
+   __SetTrace( "tBigNtst24 port: phi(97)", "96", cActual )
+RETURN cActual == "96"
+
+
+FUNCTION Test_TBigNtst34_MillerRabin_Mersenne127()
+   LOCAL lActual := HBNum():New( "2" ):PowInt( 127 ):Sub( "1" ):MillerRabin( 5 )
+   LOCAL cActual := IIf( lActual, ".T.", ".F." )
+
+   __SetTrace( "tBigNtst34 port: MillerRabin(2^127 - 1, 5)", ".T.", cActual )
+RETURN lActual
+
+
+FUNCTION Test_TBigNtst35_Randomize_LargeBounds()
+   LOCAL oMin := HBNum():New( "1" )
+   LOCAL oMax := HBNum():New( "9999999999999999999999999999999999999999" )
+   LOCAL oValue := HBNum():New():Randomize( oMin, oMax )
+   LOCAL cActual := oValue:ToString()
+   LOCAL lOk := At( ".", cActual ) == 0 .AND. oValue:Gte( oMin ) .AND. oValue:Lte( oMax )
+
+   __SetTrace( "tBigNtst35 port: Randomize(1, 10^40-1)", "integer in [1, 9999999999999999999999999999999999999999]", cActual )
+RETURN lOk
+
+
+FUNCTION Test_TBigNtst36_Fibonacci_1000()
+   LOCAL cExpected := "0,1,1,2,3,5,8,13,21,34,55,89,144,233,377,610,987"
+   LOCAL cActual := __JoinTextArray( HBNum():New( "1000" ):Fibonacci() )
+
+   __SetTrace( "tBigNtst36 port: Fibonacci(<1000)", cExpected, cActual )
+RETURN cActual == cExpected
+
+
+FUNCTION Test_TBigNtst37_Fibonacci_Mersenne31()
+   LOCAL cExpected := "0,1,1,2,3,5,8,13,21"
+   LOCAL cActual := __JoinTextArray( HBNum():New( "31" ):Fibonacci() )
+
+   __SetTrace( "tBigNtst37 port: Fibonacci(<31)", cExpected, cActual )
+RETURN cActual == cExpected
+
+
+FUNCTION Test_TBigNtst38_BigMersenne127()
+   LOCAL cExpected := "170141183460469231731687303715884105727"
+   LOCAL cActual := HBNum():New( "2" ):PowInt( 127 ):Sub( "1" ):ToString()
+
+   __SetTrace( "tBigNtst38 port: 2^127 - 1", cExpected, cActual )
+RETURN cActual == cExpected
+
+
+FUNCTION Test_TBigNtst39_BigGoogol()
+   LOCAL cExpected := "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+   LOCAL cActual := HBNum():New( "10" ):PowInt( 100 ):ToString()
+
+   __SetTrace( "tBigNtst39 representative port: 10^100", cExpected, cActual )
+RETURN cActual == cExpected

@@ -17,6 +17,19 @@ hbnum: Released to Public Domain.
 #define C_EXP       6
 #define C_EXPECT    7
 #define C_LOOPS     8
+#define C_TBIG_CFG  9
+#define C_TBIG_VIEW 10
+
+#define TBIG_CFG_SETDEC   1
+#define TBIG_CFG_ROOTACC  2
+#define TBIG_CFG_SYSSQRT  3
+
+#define TBIG_VIEW_MODE    1
+#define TBIG_VIEW_DIGITS  2
+
+#define TBIG_VIEW_EXACT   1
+#define TBIG_VIEW_RND     2
+#define TBIG_VIEW_NORND   3
 
 STATIC __cLogFileName := ""
 STATIC __cCsvFileName := ""
@@ -184,30 +197,68 @@ STATIC PROCEDURE __AppendCases( aTarget, aSource )
    NEXT
 RETURN
 
+STATIC FUNCTION __TBigCfg( nSetDecimals, nRootAcc, nSysSQRT )
+RETURN { nSetDecimals, nRootAcc, nSysSQRT }
+
+STATIC FUNCTION __TBigView( nMode, nDigits )
+RETURN { nMode, nDigits }
+
+STATIC FUNCTION __ShiftText( cText, nZeros )
+RETURN cText + Replicate( "0", Max( Int( nZeros ), 0 ) )
+
+STATIC FUNCTION __Pow10Text( nExp )
+RETURN __ShiftText( "1", nExp )
+
+#ifdef HBNUM_BENCH_WITH_TBIG
+STATIC FUNCTION __BuildAccuracyCompareRootLogCases()
+   LOCAL aCases := {}
+   LOCAL aRootCfg := __TBigCfg( 50, 50, 0 )
+   LOCAL aLog0Cfg := __TBigCfg( 50, 49, 0 )
+   LOCAL aLog1Cfg := __TBigCfg( 50, 50, 0 )
+   LOCAL aExactView := __TBigView( TBIG_VIEW_EXACT, NIL )
+   LOCAL aPrecView := __TBigView( TBIG_VIEW_NORND, NIL )
+
+   AAdd( aCases, { "ACC_SQRT_BIG_EXACT", "sqrt", "15241578753238836750495351562536198787501905199875019052100", "", 0, 0, "123456789012345678901234567890", 1, aRootCfg, aPrecView } )
+   AAdd( aCases, { "ACC_SQRT_POW10_200", "sqrt", __Pow10Text( 200 ), "", 0, 0, __Pow10Text( 100 ), 1, aRootCfg, aExactView } )
+   AAdd( aCases, { "ACC_NTHROOT_BIG_IDENTITY", "nthroot", "1234567890123456789012345678901234567890", 1, 0, 0, "1234567890123456789012345678901234567890", 1, aRootCfg, aExactView } )
+   AAdd( aCases, { "ACC_LOG_BASE2_POW2_512", "log", "13407807929942597099574024998205846127479365820592393377723561443721764030073546976801874298166903427690031858186486050853753882811946569946433649006084096", "2", NIL, 0, "512", 1, aLog0Cfg, aExactView } )
+   AAdd( aCases, { "ACC_LOG_BASE10POW100_POW10_300", "log", __Pow10Text( 300 ), __Pow10Text( 100 ), NIL, 0, "3", 1, aLog0Cfg, aExactView } )
+   AAdd( aCases, { "ACC_LOG10_POW10_300", "log10", __Pow10Text( 300 ), "", NIL, 0, "300", 1, aLog0Cfg, aExactView } )
+   AAdd( aCases, { "ACC_LN_POW10_80_12", "ln", "100000000000000000000000000000000000000000000000000000000000000000000000000000000", "", 12, 0, "184.206807439523", 1, aLog1Cfg, aPrecView } )
+
+RETURN aCases
+#endif
+
 STATIC FUNCTION __BuildRootLogCases()
    LOCAL aCases := {}
+   LOCAL aRootCfg := __TBigCfg( 50, 50, 0 )
+   LOCAL aLog0Cfg := __TBigCfg( 50, 49, 0 )
+   LOCAL aLog1Cfg := __TBigCfg( 50, 50, 0 )
+   LOCAL aExactView := __TBigView( TBIG_VIEW_EXACT, NIL )
+   LOCAL aPrecView := __TBigView( TBIG_VIEW_NORND, NIL )
 
-   AAdd( aCases, { "ACC_SQRT_BIG_EXACT", "sqrt", "15241578753238836750495351562536198787501905199875019052100", "", 0, 0, "123456789012345678901234567890", 1 } )
-   AAdd( aCases, { "ACC_SQRT_2_12", "sqrt", "2", "", 12, 0, "1.414213562373", 1 } )
-   AAdd( aCases, { "ACC_NTHROOT_BIG_IDENTITY", "nthroot", "1234567890123456789012345678901234567890", 1, 0, 0, "1234567890123456789012345678901234567890", 1 } )
-   AAdd( aCases, { "ACC_NTHROOT_ONE_12", "nthroot", "1", 5, 12, 0, "1", 1 } )
-   AAdd( aCases, { "ACC_LOG_BASE2_POW2_120", "log", "1329227995784915872903807060280344576", "2", NIL, 0, "120", 1 } )
-   AAdd( aCases, { "ACC_LOG_BASE10POW20_POW10_80", "log", "100000000000000000000000000000000000000000000000000000000000000000000000000000000", "100000000000000000000", NIL, 0, "4", 1 } )
-   AAdd( aCases, { "ACC_LOG_BASE10_POW2_120_12", "log", "1329227995784915872903807060280344576", "10", 12, 0, "36.123599479677", 1 } )
-   AAdd( aCases, { "ACC_LOG10_POW10_80", "log10", "100000000000000000000000000000000000000000000000000000000000000000000000000000000", "", NIL, 0, "80", 1 } )
-   AAdd( aCases, { "ACC_LOG10_POW2_120_12", "log10", "1329227995784915872903807060280344576", "", 12, 0, "36.123599479677", 1 } )
-   AAdd( aCases, { "ACC_LN_ONE", "ln", "1", "", NIL, 0, "0", 1 } )
-   AAdd( aCases, { "ACC_LN_POW10_80_12", "ln", "100000000000000000000000000000000000000000000000000000000000000000000000000000000", "", 12, 0, "184.206807439523", 1 } )
+   AAdd( aCases, { "ACC_SQRT_BIG_EXACT", "sqrt", "15241578753238836750495351562536198787501905199875019052100", "", 0, 0, "123456789012345678901234567890", 1, aRootCfg, aPrecView } )
+   AAdd( aCases, { "ACC_SQRT_POW10_200", "sqrt", __Pow10Text( 200 ), "", 0, 0, __Pow10Text( 100 ), 1, aRootCfg, aExactView } )
+   AAdd( aCases, { "ACC_NTHROOT_BIG_IDENTITY", "nthroot", "1234567890123456789012345678901234567890", 1, 0, 0, "1234567890123456789012345678901234567890", 1, aRootCfg, aPrecView } )
+   AAdd( aCases, { "ACC_NTHROOT_POW10_300_CUBE", "nthroot", __Pow10Text( 300 ), 3, 0, 0, __Pow10Text( 100 ), 1, aRootCfg, aExactView } )
+   AAdd( aCases, { "ACC_LOG_BASE2_POW2_512", "log", "13407807929942597099574024998205846127479365820592393377723561443721764030073546976801874298166903427690031858186486050853753882811946569946433649006084096", "2", NIL, 0, "512", 1, aLog0Cfg, aExactView } )
+   AAdd( aCases, { "ACC_LOG_BASE10POW100_POW10_300", "log", __Pow10Text( 300 ), __Pow10Text( 100 ), NIL, 0, "3", 1, aLog0Cfg, aExactView } )
+   AAdd( aCases, { "ACC_LOG10_POW10_300", "log10", __Pow10Text( 300 ), "", NIL, 0, "300", 1, aLog0Cfg, aExactView } )
+   AAdd( aCases, { "ACC_LN_POW10_80_12", "ln", "100000000000000000000000000000000000000000000000000000000000000000000000000000000", "", 12, 0, "184.206807439523", 1, aLog1Cfg, aPrecView } )
 
 RETURN aCases
 
 STATIC FUNCTION __BuildRootLogPerfCases()
    LOCAL aCases := {}
+   LOCAL aRootCfg := __TBigCfg( 50, 50, 0 )
+   LOCAL aLog0Cfg := __TBigCfg( 50, 49, 0 )
+   LOCAL aLog1Cfg := __TBigCfg( 50, 50, 0 )
 
-   AAdd( aCases, { "PERF_SQRT_2P120", "sqrt", "1329227995784915872903807060280344576", "", 12, 0, "", 60 } )
-   AAdd( aCases, { "PERF_LOG_BASE10_2P120", "log", "1329227995784915872903807060280344576", "10", 12, 0, "", 20 } )
-   AAdd( aCases, { "PERF_LOG10_2P120", "log10", "1329227995784915872903807060280344576", "", 12, 0, "", 24 } )
-   AAdd( aCases, { "PERF_LN_10P80", "ln", "100000000000000000000000000000000000000000000000000000000000000000000000000000000", "", 12, 0, "", 16 } )
+   AAdd( aCases, { "PERF_SQRT_10P200", "sqrt", __Pow10Text( 200 ), "", 0, 0, "", 24, aRootCfg } )
+   AAdd( aCases, { "PERF_NTHROOT_10P300_CUBE", "nthroot", __Pow10Text( 300 ), 3, 0, 0, "", 16, aRootCfg } )
+   AAdd( aCases, { "PERF_LOG_BASE10P100_10P300", "log", __Pow10Text( 300 ), __Pow10Text( 100 ), 0, 0, "", 12, aLog0Cfg } )
+   AAdd( aCases, { "PERF_LOG10_10P300", "log10", __Pow10Text( 300 ), "", 0, 0, "", 14, aLog0Cfg } )
+   AAdd( aCases, { "PERF_LN_10P200", "ln", __Pow10Text( 200 ), "", 12, 0, "", 10, aLog1Cfg } )
 
 RETURN aCases
 
@@ -217,38 +268,30 @@ STATIC FUNCTION __BuildAccuracyCases()
    AAdd( aCases, { "ACC_COMPARE_BIG_GT", "compare", "98765432109876543210987654321098765432109876543211", "98765432109876543210987654321098765432109876543210", 0, 0, "1", 1 } )
    AAdd( aCases, { "ACC_COMPARE_BIG_EQ_SCALE", "compare", "1234567890123456789012345678901234567890.1234500", "1234567890123456789012345678901234567890.12345", 0, 0, "0", 1 } )
    AAdd( aCases, { "ACC_COMPARE_BIG_NEG", "compare", "-99999999999999999999999999999999999999999999999999", "-99999999999999999999999999999999999999999999999998", 0, 0, "-1", 1 } )
-   AAdd( aCases, { "ACC_ADD_CARRY", "add", "999999999999999999999999999999", "1", 0, 0, "1000000000000000000000000000000", 1 } )
-   AAdd( aCases, { "ACC_ADD_SCALE", "add", "123.4500", "0.55", 0, 0, "124", 1 } )
+   AAdd( aCases, { "ACC_ADD_CARRY_180D", "add", Replicate( "9", 180 ), "1", 0, 0, __Pow10Text( 180 ), 1 } )
+   AAdd( aCases, { "ACC_ADD_SCALE_BIG", "add", "1234567890123456789012345678901234567890.4500", "0.55", 0, 0, "1234567890123456789012345678901234567891", 1 } )
    AAdd( aCases, { "ACC_ADD_BIG_TBIG", "add", "12345678901234567890123456789012345678901234567890", "98765432109876543210987654321098765432109876543210", 0, 0, "111111111011111111101111111110111111111011111111100", 1 } )
-   AAdd( aCases, { "ACC_SUB_NEG", "sub", "12345678901234567890", "22345678901234567890", 0, 0, "-10000000000000000000", 1 } )
-   AAdd( aCases, { "ACC_SUB_DEC_NEG", "sub", "-10.25", "0.75", 0, 0, "-11", 1 } )
-    AAdd( aCases, { "ACC_SUB_BIG_TBIG", "sub", "12345678901234567890123456789012345678901234567890", "98765432109876543210987654321098765432109876543210", 0, 0, "-86419753208641975320864197532086419753208641975320", 1 } )
-   AAdd( aCases, { "ACC_MUL", "mul", "123456789", "987654321", 0, 0, "121932631112635269", 1 } )
-   AAdd( aCases, { "ACC_MUL_DEC", "mul", "1.25", "0.4", 0, 0, "0.5", 1 } )
+   AAdd( aCases, { "ACC_SUB_NEG_POW10_200", "sub", __Pow10Text( 200 ), __ShiftText( "2", 200 ), 0, 0, "-" + __Pow10Text( 200 ), 1 } )
+   AAdd( aCases, { "ACC_SUB_DEC_NEG_BIG", "sub", "-" + __Pow10Text( 120 ) + ".25", "0.75", 0, 0, "-" + "1" + Replicate( "0", 119 ) + "1", 1 } )
+   AAdd( aCases, { "ACC_SUB_BIG_TBIG", "sub", "12345678901234567890123456789012345678901234567890", "98765432109876543210987654321098765432109876543210", 0, 0, "-86419753208641975320864197532086419753208641975320", 1 } )
    AAdd( aCases, { "ACC_MUL_BIG_TBIG", "mul", "12345678901234567890123456789", "98765432109876543210987654321", 0, 0, "1219326311370217952261850327336229233322374638011112635269", 1 } )
-   AAdd( aCases, { "ACC_DIV_EXACT", "div", "144", "12", 0, 0, "12", 1 } )
-   AAdd( aCases, { "ACC_DIV_DEC_EXACT", "div", "1.25", "0.5", 1, 0, "2.5", 1 } )
+   AAdd( aCases, { "ACC_MUL_DEC_BIG", "mul", __ShiftText( "125", 118 ), "0.4", 0, 0, __ShiftText( "5", 119 ), 1 } )
+   AAdd( aCases, { "ACC_MUL_POW10_120_80", "mul", __Pow10Text( 120 ), __Pow10Text( 80 ), 0, 0, __Pow10Text( 200 ), 1 } )
    AAdd( aCases, { "ACC_DIV_BIG_TBIG", "div", "1219326311370217952261850327336229233322374638011112635269", "12345678901234567890123456789", 0, 0, "98765432109876543210987654321", 1 } )
-   AAdd( aCases, { "ACC_MOD", "mod", "1000", "37", 0, 0, "1", 1 } )
-   AAdd( aCases, { "ACC_MOD_SCALE", "mod", "10.5", "0.2", 0, 0, "0.1", 1 } )
-   AAdd( aCases, { "ACC_MOD_NEG_DIVISOR", "mod", "10.5", "-0.2", 0, 0, "0.1", 1 } )
+   AAdd( aCases, { "ACC_DIV_DEC_EXACT_BIG", "div", __ShiftText( "125", 118 ), "0.5", 0, 0, __ShiftText( "25", 119 ), 1 } )
+   AAdd( aCases, { "ACC_DIV_POW10_300_120", "div", __Pow10Text( 300 ), __Pow10Text( 120 ), 0, 0, __Pow10Text( 180 ), 1 } )
    AAdd( aCases, { "ACC_MOD_BIG_TBIG", "mod", "1219326311370217952249657064224965706422496570642237463801112498094790", "12345678901234567890123456789012345678901234567890", 0, 0, "1234567890", 1 } )
-   AAdd( aCases, { "ACC_POWINT", "powint", "2", "", 0, 32, "4294967296", 1 } )
-   AAdd( aCases, { "ACC_POWINT_DEC", "powint", "1.5", "", 0, 3, "3.375", 1 } )
-   AAdd( aCases, { "ACC_POWINT_NEG_EVEN", "powint", "-2", "", 0, 4, "16", 1 } )
+   AAdd( aCases, { "ACC_MOD_SCALE_BIG", "mod", __Pow10Text( 120 ) + ".5", "0.2", 0, 0, "0.1", 1 } )
+   AAdd( aCases, { "ACC_MOD_NEG_DIVISOR_BIG", "mod", __Pow10Text( 120 ) + ".5", "-0.2", 0, 0, "0.1", 1 } )
+   AAdd( aCases, { "ACC_MOD_POW10_200_DELTA", "mod", "1" + Replicate( "0", 180 ) + "12345678901234567890", __Pow10Text( 200 ), 0, 0, "12345678901234567890", 1 } )
+   AAdd( aCases, { "ACC_POWINT_NEG_EVEN_BIG", "powint", "-" + __Pow10Text( 30 ), "", 0, 4, __Pow10Text( 120 ), 1 } )
    AAdd( aCases, { "ACC_POWINT_GOOLOL", "powint", "10", "", 0, 100, "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", 1 } )
-   AAdd( aCases, { "ACC_GCD", "gcd", "12345678901234567890", "9876543210", 0, 0, "90", 1 } )
-   AAdd( aCases, { "ACC_GCD_COPRIME", "gcd", "123456789012345678901", "123456789012345678902", 0, 0, "1", 1 } )
-   AAdd( aCases, { "ACC_GCD_LARGE_FACTOR", "gcd", "456790119345679011930", "1123456780012345677990", 0, 0, "12345678901234567890", 1 } )
-   AAdd( aCases, { "ACC_GCD_COPRIME_SAFE", "gcd", "1234567", "1234568", 0, 0, "1", 1 } )
-   AAdd( aCases, { "ACC_GCD_FACTOR_SAFE", "gcd", "45678979", "112345597", 0, 0, "1234567", 1 } )
+   AAdd( aCases, { "ACC_POWINT_POW10_100_CUBE", "powint", __Pow10Text( 100 ), "", 0, 3, __Pow10Text( 300 ), 1 } )
+   AAdd( aCases, { "ACC_GCD_BIG_COPRIME", "gcd", __Pow10Text( 200 ), "1" + Replicate( "0", 199 ) + "1", 0, 0, "1", 1 } )
    AAdd( aCases, { "ACC_GCD_BIG_TBIG", "gcd", "456790119345679011934567901193456790119345679011930", "1123456780012345678001234567800123456780012345677990", 0, 0, "12345678901234567890123456789012345678901234567890", 1 } )
-   AAdd( aCases, { "ACC_LCM", "lcm", "21", "6", 0, 0, "42", 1 } )
-   AAdd( aCases, { "ACC_LCM_COPRIME", "lcm", "123456789012345678901", "123456789012345678902", 0, 0, "15241578753238836750560890354538942246702", 1 } )
-   AAdd( aCases, { "ACC_LCM_LARGE_FACTOR", "lcm", "456790119345679011930", "1123456780012345677990", 0, 0, "41567900860456790085630", 1 } )
-   AAdd( aCases, { "ACC_LCM_COPRIME_SAFE", "lcm", "1234567", "1234568", 0, 0, "1524156912056", 1 } )
-   AAdd( aCases, { "ACC_LCM_FACTOR_SAFE", "lcm", "45678979", "112345597", 0, 0, "4156787089", 1 } )
+   AAdd( aCases, { "ACC_GCD_POW10_FACTORED", "gcd", __ShiftText( "37", 120 ), __ShiftText( "74", 120 ), 0, 0, __ShiftText( "37", 120 ), 1 } )
    AAdd( aCases, { "ACC_LCM_BIG_TBIG", "lcm", "456790119345679011934567901193456790119345679011930", "1123456780012345678001234567800123456780012345677990", 0, 0, "41567900860456790086045679008604567900860456790085630", 1 } )
+   AAdd( aCases, { "ACC_LCM_POW10_FACTORED", "lcm", __ShiftText( "37", 120 ), __ShiftText( "91", 120 ), 0, 0, __ShiftText( "3367", 120 ), 1 } )
 
    __AppendCases( aCases, __BuildRootLogCases() )
 
@@ -261,32 +304,21 @@ STATIC FUNCTION __BuildAccuracyCompareCases()
    AAdd( aCases, { "ACC_COMPARE_BIG_GT", "compare", "98765432109876543210987654321098765432109876543211", "98765432109876543210987654321098765432109876543210", 0, 0, "1", 1 } )
    AAdd( aCases, { "ACC_COMPARE_BIG_EQ_SCALE", "compare", "1234567890123456789012345678901234567890.1234500", "1234567890123456789012345678901234567890.12345", 0, 0, "0", 1 } )
    AAdd( aCases, { "ACC_COMPARE_BIG_NEG", "compare", "-99999999999999999999999999999999999999999999999999", "-99999999999999999999999999999999999999999999999998", 0, 0, "-1", 1 } )
-   AAdd( aCases, { "ACC_ADD_CARRY", "add", "999999999999999999999999999999", "1", 0, 0, "1000000000000000000000000000000", 1 } )
-   AAdd( aCases, { "ACC_ADD_SCALE", "add", "123.4500", "0.55", 0, 0, "124", 1 } )
    AAdd( aCases, { "ACC_ADD_BIG_TBIG", "add", "12345678901234567890123456789012345678901234567890", "98765432109876543210987654321098765432109876543210", 0, 0, "111111111011111111101111111110111111111011111111100", 1 } )
-   AAdd( aCases, { "ACC_SUB_NEG", "sub", "12345678901234567890", "22345678901234567890", 0, 0, "-10000000000000000000", 1 } )
-   AAdd( aCases, { "ACC_SUB_DEC_NEG", "sub", "-10.25", "0.75", 0, 0, "-11", 1 } )
+   AAdd( aCases, { "ACC_ADD_POW10_200", "add", __Pow10Text( 200 ), __Pow10Text( 200 ), 0, 0, __ShiftText( "2", 200 ), 1 } )
    AAdd( aCases, { "ACC_SUB_BIG_TBIG", "sub", "12345678901234567890123456789012345678901234567890", "98765432109876543210987654321098765432109876543210", 0, 0, "-86419753208641975320864197532086419753208641975320", 1 } )
-   AAdd( aCases, { "ACC_MUL", "mul", "123456789", "987654321", 0, 0, "121932631112635269", 1 } )
-   AAdd( aCases, { "ACC_MUL_DEC", "mul", "1.25", "0.4", 0, 0, "0.5", 1 } )
+   AAdd( aCases, { "ACC_SUB_POW10_200", "sub", __ShiftText( "2", 200 ), __Pow10Text( 200 ), 0, 0, __Pow10Text( 200 ), 1 } )
    AAdd( aCases, { "ACC_MUL_BIG_TBIG", "mul", "12345678901234567890123456789", "98765432109876543210987654321", 0, 0, "1219326311370217952261850327336229233322374638011112635269", 1 } )
-   AAdd( aCases, { "ACC_DIV_EXACT", "div", "144", "12", 0, 0, "12", 1 } )
-   AAdd( aCases, { "ACC_DIV_DEC_EXACT", "div", "1.25", "0.5", 1, 0, "2.5", 1 } )
+   AAdd( aCases, { "ACC_MUL_POW10_120_80", "mul", __Pow10Text( 120 ), __Pow10Text( 80 ), 0, 0, __Pow10Text( 200 ), 1 } )
    AAdd( aCases, { "ACC_DIV_BIG_TBIG", "div", "1219326311370217952261850327336229233322374638011112635269", "12345678901234567890123456789", 0, 0, "98765432109876543210987654321", 1 } )
-   AAdd( aCases, { "ACC_MOD", "mod", "1000", "37", 0, 0, "1", 1 } )
+   AAdd( aCases, { "ACC_DIV_POW10_300_120", "div", __Pow10Text( 300 ), __Pow10Text( 120 ), 0, 0, __Pow10Text( 180 ), 1 } )
    AAdd( aCases, { "ACC_MOD_BIG_TBIG", "mod", "1219326311370217952249657064224965706422496570642237463801112498094790", "12345678901234567890123456789012345678901234567890", 0, 0, "1234567890", 1 } )
-   AAdd( aCases, { "ACC_POWINT", "powint", "2", "", 0, 32, "4294967296", 1 } )
-   AAdd( aCases, { "ACC_POWINT_DEC", "powint", "1.5", "", 0, 3, "3.375", 1 } )
-   AAdd( aCases, { "ACC_POWINT_NEG_EVEN", "powint", "-2", "", 0, 4, "16", 1 } )
-   AAdd( aCases, { "ACC_POWINT_GOOLOL", "powint", "10", "", 0, 100, "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", 1 } )
-   AAdd( aCases, { "ACC_GCD", "gcd", "12345678901234567890", "9876543210", 0, 0, "90", 1 } )
-   AAdd( aCases, { "ACC_GCD_BIG_TBIG", "gcd", "456790119345679011934567901193456790119345679011930", "1123456780012345678001234567800123456780012345677990", 0, 0, "12345678901234567890123456789012345678901234567890", 1 } )
-   AAdd( aCases, { "ACC_LCM", "lcm", "21", "6", 0, 0, "42", 1 } )
-   AAdd( aCases, { "ACC_LCM_BIG_TBIG", "lcm", "456790119345679011934567901193456790119345679011930", "1123456780012345678001234567800123456780012345677990", 0, 0, "41567900860456790086045679008604567900860456790085630", 1 } )
-   AAdd( aCases, { "ACC_LCM_COPRIME_SAFE", "lcm", "1234567", "1234568", 0, 0, "1524156912056", 1 } )
-   AAdd( aCases, { "ACC_LCM_FACTOR_SAFE", "lcm", "45678979", "112345597", 0, 0, "4156787089", 1 } )
+   AAdd( aCases, { "ACC_MOD_POW10_200_DELTA", "mod", "1" + Replicate( "0", 180 ) + "12345678901234567890", __Pow10Text( 200 ), 0, 0, "12345678901234567890", 1 } )
+   AAdd( aCases, { "ACC_POWINT_POW10_100_CUBE", "powint", __Pow10Text( 100 ), "", 0, 3, __Pow10Text( 300 ), 1 } )
+   AAdd( aCases, { "ACC_GCD_POW10_FACTORED", "gcd", __ShiftText( "37", 120 ), __ShiftText( "74", 120 ), 0, 0, __ShiftText( "37", 120 ), 1 } )
+   AAdd( aCases, { "ACC_LCM_POW10_FACTORED", "lcm", __ShiftText( "37", 120 ), __ShiftText( "91", 120 ), 0, 0, __ShiftText( "3367", 120 ), 1 } )
 
-   __AppendCases( aCases, __BuildRootLogCases() )
+   __AppendCases( aCases, __BuildAccuracyCompareRootLogCases() )
 
 RETURN aCases
 #endif
@@ -294,25 +326,15 @@ RETURN aCases
 STATIC FUNCTION __BuildPerfCases()
    LOCAL aCases := {}
 
-   AAdd( aCases, { "PERF_ADD_96D", "add", "999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999", "1", 0, 0, "", 3000 } )
-   AAdd( aCases, { "PERF_MUL_48D", "mul", "123456789012345678901234567890123456789012345678", "876543210987654321098765432109876543210987654321", 0, 0, "", 600 } )
-   AAdd( aCases, { "PERF_MOD_96D", "mod", "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456", "9876543210123456789", 0, 0, "", 900 } )
-   AAdd( aCases, { "PERF_POWINT", "powint", "3", "", 0, 120, "", 220 } )
-   AAdd( aCases, { "PERF_GCD", "gcd", "123456789012345678901234567890", "98765432109876543210", 0, 0, "", 1200 } )
+   AAdd( aCases, { "PERF_ADD_384D", "add", Replicate( "9", 384 ), "1", 0, 0, "", 1200 } )
+   AAdd( aCases, { "PERF_MUL_192D", "mul", Replicate( "1234567890", 19 ) + "12", Replicate( "9876543210", 19 ) + "98", 0, 0, "", 180 } )
+   AAdd( aCases, { "PERF_MOD_512D", "mod", Replicate( "1234567890", 51 ) + "12", "98765432101234567899876543210123456789", 0, 0, "", 280 } )
+   AAdd( aCases, { "PERF_POWINT_10P100_CUBE", "powint", __Pow10Text( 100 ), "", 0, 3, "", 48 } )
+   AAdd( aCases, { "PERF_GCD_240D", "gcd", "456790119345679011934567901193456790119345679011930", "1123456780012345678001234567800123456780012345677990", 0, 0, "", 240 } )
 
    __AppendCases( aCases, __BuildRootLogPerfCases() )
 
 RETURN aCases
-
-STATIC FUNCTION __TBigWorkPrecision( nPrecision )
-   LOCAL nDigits := 48
-
-   IF HB_ISNUMERIC( nPrecision )
-      nDigits := Max( Int( nPrecision ), 0 ) + 8
-      nDigits := Max( nDigits, 16 )
-   ENDIF
-
-RETURN nDigits
 
 STATIC FUNCTION __ReadEnvText( cName, cDefault )
    LOCAL cValue := Upper( AllTrim( GetEnv( cName ) ) )
@@ -344,20 +366,105 @@ STATIC FUNCTION __BenchSkipPerf()
 RETURN cValue == "1" .OR. cValue == "TRUE" .OR. cValue == "YES" .OR. cValue == "ON"
 
 #ifdef HBNUM_BENCH_WITH_TBIG
-STATIC PROCEDURE __PrepareTBigAdvanced( oValue, nPrecision )
-   LOCAL nDigits := __TBigWorkPrecision( nPrecision )
+STATIC FUNCTION __CaseValue( aCase, nIndex )
+   IF nIndex <= Len( aCase )
+      RETURN aCase[ nIndex ]
+   ENDIF
+RETURN NIL
 
-   oValue:SetDecimals( nDigits + 1 )
-   oValue:nthRootAcc( nDigits )
-   oValue:SysSQRT( 0 )
+STATIC FUNCTION __TBigWorkPrecision( nPrecision )
+   LOCAL nDigits := 48
+
+   IF HB_ISNUMERIC( nPrecision )
+      nDigits := Max( Int( nPrecision ), 0 ) + 8
+      nDigits := Max( nDigits, 16 )
+   ENDIF
+
+RETURN nDigits
+
+STATIC FUNCTION __CaseTBigCfgValue( aCase, nIndex )
+   LOCAL aCfg := __CaseValue( aCase, C_TBIG_CFG )
+
+   IF ValType( aCfg ) == "A" .AND. nIndex <= Len( aCfg )
+      RETURN aCfg[ nIndex ]
+   ENDIF
+RETURN NIL
+
+STATIC FUNCTION __CaseTBigViewValue( aCase, nIndex )
+   LOCAL aView := __CaseValue( aCase, C_TBIG_VIEW )
+
+   IF ValType( aView ) == "A" .AND. nIndex <= Len( aView )
+      RETURN aView[ nIndex ]
+   ENDIF
+RETURN NIL
+
+STATIC PROCEDURE __PrepareTBigCase( oValue, aCase )
+   LOCAL nPrecision := aCase[ C_PREC ]
+   LOCAL nDigits := __TBigWorkPrecision( nPrecision )
+   LOCAL nSetDecimals := __CaseTBigCfgValue( aCase, TBIG_CFG_SETDEC )
+   LOCAL nRootAcc := __CaseTBigCfgValue( aCase, TBIG_CFG_ROOTACC )
+   LOCAL nSysSQRT := __CaseTBigCfgValue( aCase, TBIG_CFG_SYSSQRT )
+
+   IF ! HB_ISNUMERIC( nSetDecimals )
+      nSetDecimals := nDigits + 1
+   ELSE
+      nSetDecimals := Max( Int( nSetDecimals ), 0 )
+   ENDIF
+
+   IF ! HB_ISNUMERIC( nRootAcc )
+      nRootAcc := nDigits
+   ELSE
+      nRootAcc := Max( Int( nRootAcc ), 0 )
+   ENDIF
+
+   IF ! HB_ISNUMERIC( nSysSQRT )
+      nSysSQRT := 0
+   ELSE
+      nSysSQRT := Max( Int( nSysSQRT ), 0 )
+   ENDIF
+
+   oValue:SetDecimals( nSetDecimals )
+   oValue:nthRootAcc( nRootAcc )
+   oValue:SysSQRT( nSysSQRT )
 RETURN
 
-STATIC FUNCTION __TBigResultToCanonical( uValue, nPrecision )
+STATIC FUNCTION __TBigResultToCanonical( uValue, aCase )
    LOCAL cOut
+   LOCAL nMode := __CaseTBigViewValue( aCase, TBIG_VIEW_MODE )
+   LOCAL nDigits := __CaseTBigViewValue( aCase, TBIG_VIEW_DIGITS )
 
    IF ValType( uValue ) == "O"
-      IF HB_ISNUMERIC( nPrecision )
-         uValue := uValue:NoRnd( Max( Int( nPrecision ), 0 ) )
+      IF HB_ISNUMERIC( nMode )
+         nMode := Max( Int( nMode ), 0 )
+      ENDIF
+
+      IF HB_ISNUMERIC( nDigits )
+         nDigits := Max( Int( nDigits ), 0 )
+      ELSEIF HB_ISNUMERIC( aCase[ C_PREC ] ) .AND. nMode != TBIG_VIEW_EXACT
+         nDigits := Max( Int( aCase[ C_PREC ] ), 0 )
+      ELSE
+         nDigits := NIL
+      ENDIF
+
+      IF ! HB_ISNUMERIC( nMode )
+         IF HB_ISNUMERIC( aCase[ C_PREC ] )
+            nMode := TBIG_VIEW_NORND
+            nDigits := Max( Int( aCase[ C_PREC ] ), 0 )
+         ELSE
+            nMode := TBIG_VIEW_EXACT
+         ENDIF
+      ENDIF
+
+      DO CASE
+      CASE nMode == TBIG_VIEW_RND .AND. HB_ISNUMERIC( nDigits )
+         uValue := uValue:Rnd( nDigits )
+      CASE nMode == TBIG_VIEW_NORND .AND. HB_ISNUMERIC( nDigits )
+         uValue := uValue:NoRnd( nDigits )
+      ENDCASE
+
+      IF nMode == TBIG_VIEW_EXACT .AND. HB_ISNUMERIC( aCase[ C_PREC ] ) .AND. ;
+            __CaseValue( aCase, C_TBIG_VIEW ) == NIL
+         uValue := uValue:NoRnd( Max( Int( aCase[ C_PREC ] ), 0 ) )
       ENDIF
       cOut := uValue:ExactValue( .F., .F. )
    ELSE
@@ -458,19 +565,19 @@ STATIC FUNCTION __EvalTBig( aCase )
    CASE aCase[ C_OP ] == "powint"
       oR := oA:Pow( hb_ntos( aCase[ C_EXP ] ), .T. )
    CASE aCase[ C_OP ] == "sqrt"
-      __PrepareTBigAdvanced( oA, aCase[ C_PREC ] )
+      __PrepareTBigCase( oA, aCase )
       oR := oA:SQRT()
    CASE aCase[ C_OP ] == "nthroot"
-      __PrepareTBigAdvanced( oA, aCase[ C_PREC ] )
+      __PrepareTBigCase( oA, aCase )
       oR := oA:nthRoot( IIf( HB_ISNUMERIC( aCase[ C_B ] ), hb_ntos( aCase[ C_B ] ), aCase[ C_B ] ) )
    CASE aCase[ C_OP ] == "log"
-      __PrepareTBigAdvanced( oA, aCase[ C_PREC ] )
+      __PrepareTBigCase( oA, aCase )
       oR := oA:Log( aCase[ C_B ] )
    CASE aCase[ C_OP ] == "log10"
-      __PrepareTBigAdvanced( oA, aCase[ C_PREC ] )
+      __PrepareTBigCase( oA, aCase )
       oR := oA:Log10()
    CASE aCase[ C_OP ] == "ln"
-      __PrepareTBigAdvanced( oA, aCase[ C_PREC ] )
+      __PrepareTBigCase( oA, aCase )
       oR := oA:Ln()
    CASE aCase[ C_OP ] == "gcd"
       oR := oA:GCD( aCase[ C_B ] )
@@ -480,7 +587,7 @@ STATIC FUNCTION __EvalTBig( aCase )
       BREAK
    ENDCASE
 
-RETURN __TBigResultToCanonical( oR, aCase[ C_PREC ] )
+RETURN __TBigResultToCanonical( oR, aCase )
 #endif
 
 STATIC FUNCTION __RunAccuracyHBNum( aCases )
