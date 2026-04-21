@@ -1,8 +1,10 @@
-# HBNumHBNum is an arbitrary precision numeric library designed for the Harbour ecosystem.
+# HBNum
+
+HBNum is an arbitrary precision numeric library designed for the Harbour ecosystem.
 > ⚠️ This document is the SINGLE SOURCE OF TRUTH.
 > > Any implementation MUST strictly follow these rules.
 
-> > ## 1. SYSTEM OVERVIEWHBNum is:
+> > ## 1. SYSTEM OVERVIEW HBNum is:
 > > > A **C-based numeric engine with a Harbour interface**Execution model:Harbour → orchestrationC       → computation
 > > ### HARD RULEIF heavy math is implemented in Harbour → WRONG
 
