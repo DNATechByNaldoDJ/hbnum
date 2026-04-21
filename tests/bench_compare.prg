@@ -4,6 +4,7 @@ hbnum: Released to Public Domain.
 #include "hbnum.ch"
 #include "hblog.ch"
 #include "fileio.ch"
+#include "hbthread.ch"
 
 #ifdef HBNUM_BENCH_WITH_TBIG
    #include "tBigNumber.ch"
@@ -35,6 +36,12 @@ STATIC __cLogFileName := ""
 STATIC __cCsvFileName := ""
 STATIC __lCsvHeader := .F.
 
+STATIC __pSpinner := NIL
+STATIC __lSpinnerStop := .F.
+STATIC __cSpinnerLabel := ""
+STATIC __nSpinnerDone := 0
+STATIC __nSpinnerTotal := 0
+
 STATIC PROCEDURE __InitBenchLog()
    LOCAL nStyle := HB_LOG_ST_DATE + HB_LOG_ST_ISODATE + HB_LOG_ST_TIME + HB_LOG_ST_LEVEL
    LOCAL nSeverity := HB_LOG_DEBUG
@@ -60,6 +67,63 @@ RETURN
 
 STATIC FUNCTION __NowMs()
 RETURN Int( Seconds() * 1000 )
+
+STATIC PROCEDURE __SpinnerClear()
+   OutStd( Chr( 13 ) + Space( 140 ) + Chr( 13 ) )
+RETURN
+
+STATIC PROCEDURE __SpinnerThread( lStop, cLabel, nDone, nTotal )
+   LOCAL cFrames := "|/-" + Chr( 92 )
+   LOCAL nFrame := 1
+   LOCAL cLine
+
+   DO WHILE ! lStop
+      cLine := Chr( 13 ) + "[RUN] " + SubStr( cFrames, nFrame, 1 ) + " " + cLabel
+      IF nTotal > 0
+         cLine += " (" + hb_ntos( nDone ) + "/" + hb_ntos( nTotal ) + ")"
+      ENDIF
+      OutStd( cLine )
+      nFrame := IIf( nFrame >= Len( cFrames ), 1, nFrame + 1 )
+      hb_idleSleep( 0.12 )
+   ENDDO
+RETURN
+
+STATIC PROCEDURE __SpinnerStart( cLabel, nTotal )
+   IF ValType( nTotal ) != "N"
+      nTotal := 0
+   ENDIF
+
+   __SpinnerStop()
+
+   __cSpinnerLabel := cLabel
+   __nSpinnerDone := 0
+   __nSpinnerTotal := nTotal
+   __lSpinnerStop := .F.
+   __pSpinner := hb_threadStart( HB_THREAD_INHERIT_MEMVARS, @__SpinnerThread(), ;
+      @__lSpinnerStop, @__cSpinnerLabel, @__nSpinnerDone, @__nSpinnerTotal )
+RETURN
+
+STATIC PROCEDURE __SpinnerTick( nDone, cLabel )
+   IF ValType( nDone ) == "N"
+      __nSpinnerDone := nDone
+   ENDIF
+
+   IF ValType( cLabel ) == "C" .AND. ! Empty( cLabel )
+      __cSpinnerLabel := cLabel
+   ENDIF
+RETURN
+
+STATIC PROCEDURE __SpinnerStop()
+   LOCAL pSpinner := __pSpinner
+
+   IF pSpinner != NIL
+      __lSpinnerStop := .T.
+      hb_threadJoin( pSpinner )
+      __pSpinner := NIL
+   ENDIF
+
+   __SpinnerClear()
+RETURN
 
 STATIC FUNCTION __ToChar( uValue )
    LOCAL cType := ValType( uValue )
@@ -611,10 +675,12 @@ STATIC FUNCTION __RunAccuracyHBNum( aCases )
       ENDIF
 
       cExpected := __Canonical( aCase[ C_EXPECT ] )
+      __SpinnerStart( "HBNum accuracy " + aCase[ C_ID ] + " [" + aCase[ C_OP ] + "]", 1 )
 
       BEGIN SEQUENCE
          nStart := __NowMs()
          cActual := __EvalHBNum( aCase )
+         __SpinnerTick( 1, NIL )
          nElapsed := __NowMs() - nStart
          lPass := cActual == cExpected
       RECOVER
@@ -622,6 +688,7 @@ STATIC FUNCTION __RunAccuracyHBNum( aCases )
          nElapsed := 0
          lPass := .F.
       END SEQUENCE
+      __SpinnerStop()
 
       ? IIf( lPass, "[PASS]", "[FAIL]" ), aCase[ C_ID ], ;
         "op:", aCase[ C_OP ], ;
@@ -673,11 +740,14 @@ STATIC FUNCTION __RunAccuracyCompare( aCases )
       ENDIF
 
       cExpected := __Canonical( aCase[ C_EXPECT ] )
+      __SpinnerStart( "HBNum x tBig " + aCase[ C_ID ] + " [" + aCase[ C_OP ] + "]", 2 )
 
       BEGIN SEQUENCE
          nStart := __NowMs()
          cHB := __EvalHBNum( aCase )
+         __SpinnerTick( 1, "HBNum x tBig " + aCase[ C_ID ] + " [" + aCase[ C_OP ] + "] -> tBig" )
          cTB := __EvalTBig( aCase )
+         __SpinnerTick( 2, NIL )
          nElapsed := __NowMs() - nStart
          lPass := ( cHB == cExpected ) .AND. ( cTB == cExpected ) .AND. ( cHB == cTB )
       RECOVER
@@ -686,6 +756,7 @@ STATIC FUNCTION __RunAccuracyCompare( aCases )
          nElapsed := 0
          lPass := .F.
       END SEQUENCE
+      __SpinnerStop()
 
       ? IIf( lPass, "[PASS]", "[FAIL]" ), aCase[ C_ID ], ;
         "HBNum:", cHB, ;
@@ -733,11 +804,14 @@ STATIC PROCEDURE __RunPerfHBNum( aCases )
          LOOP
       ENDIF
 
+      __SpinnerStart( "HBNum perf " + aCase[ C_ID ] + " [" + aCase[ C_OP ] + "]", aCase[ C_LOOPS ] )
       nStart := __NowMs()
       FOR nLoop := 1 TO aCase[ C_LOOPS ]
          cLast := __EvalHBNum( aCase )
+         __SpinnerTick( nLoop, NIL )
       NEXT
       nElapsed := __NowMs() - nStart
+      __SpinnerStop()
 
       ? "[PERF][HBNum]", aCase[ C_ID ], ;
         "op:", aCase[ C_OP ], ;
@@ -809,16 +883,19 @@ STATIC PROCEDURE __RunPerfTBig( aCases )
          nBenchLoops := Min( aCase[ C_LOOPS ], 1000 )
       ENDCASE
 
+      __SpinnerStart( "tBig perf " + aCase[ C_ID ] + " [" + aCase[ C_OP ] + "]", nBenchLoops )
       BEGIN SEQUENCE
          nStart := __NowMs()
          FOR nLoop := 1 TO nBenchLoops
             cLast := __EvalTBig( aCase )
+            __SpinnerTick( nLoop, NIL )
          NEXT
          nElapsed := __NowMs() - nStart
       RECOVER
          cLast := "[EXCEPTION]"
          nElapsed := 0
       END SEQUENCE
+      __SpinnerStop()
 
       ? "[PERF][tBig]", aCase[ C_ID ], ;
         "op:", aCase[ C_OP ], ;

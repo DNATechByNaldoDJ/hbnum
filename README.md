@@ -281,7 +281,7 @@ Execution modes:
 - build with `mk/hbnum_bench_tbig.hbp`
 - compares canonicalized outputs for shared operations
 - records per-case runtime for both engines
-- links against `C:/GitHub/tBigNumber/hbc/_tbignumber.hbc`
+- links against `mk/hbnum_tbig_msvc.hbc` -> `C:/GitHub/tBigNumber/lib/win/msvc64/_tbigNumber_msvc.lib`
 
 Comparative suite currently covers:
 
@@ -388,7 +388,6 @@ hbnum/
 │  ├─ bench_compare.prg
 │  ├─ hbnum_test_paths.prg
 │  ├─ robustness.prg
-│  ├─ tbig_link_stubs.prg
 │  └─ test.hbp (legacy/direct)
 └─ README.md
 ```
@@ -500,6 +499,7 @@ SET HB_BASE_PATH="F:\harbour_msvc\bin\win\msvc64\hbmk2"
 - [mk/hbnum_bench_tbig.hbp](mk/hbnum_bench_tbig.hbp): comparative benchmark file (HBNum x tBigNumber)
 - [mk/hbnum_bench_tbig.hbm](mk/hbnum_bench_tbig.hbm): shared build flags for comparative mode
 - [mk/hbnum_bench_tbig.hbc](mk/hbnum_bench_tbig.hbc): package defaults for comparative mode
+- [mk/hbnum_tbig_msvc.hbc](mk/hbnum_tbig_msvc.hbc): local package pinning the comparative build to `_tbigNumber_msvc.lib`
 - [mk/hbnum_robust.hbp](mk/hbnum_robust.hbp): robustness/property runner build file
 - [mk/hbnum_robust.hbm](mk/hbnum_robust.hbm): shared build flags for robustness mode
 - [mk/hbnum_robust.hbc](mk/hbnum_robust.hbc): package defaults for robustness mode
@@ -516,8 +516,9 @@ Current source composition in `*.hbp`:
 - Benchmark runner source: `tests/bench_compare.prg`
 - Test/log path helper source: `tests/hbnum_test_paths.prg`
 - Robustness runner source: `tests/robustness.prg`
-- Comparative build links external package: `C:/GitHub/tBigNumber/hbc/_tbignumber.hbc`
-- Comparative build includes local link shim: `tests/tbig_link_stubs.prg` (resolves `HB_MT` dependency)
+- Comparative build links local package `mk/hbnum_tbig_msvc.hbc`, which points to `C:/GitHub/tBigNumber/lib/win/msvc64/_tbigNumber_msvc.lib`
+- Comparative build links the real Harbour MT VM via `-mt` because `tBigNumber` requests `HB_MT`
+- `tbigntst_msvc.hbp` is the standalone test app build; the linked library comes from the MSVC tBigNumber library build, while `mk/hbmk.hbm` only affects the external `tBigNumber` build when that library is rebuilt
 
 ### 20.3 Build Command
 
@@ -787,7 +788,7 @@ appverif.exe -disable * -for hbnum_robust.exe
 
 Prerequisite for comparative mode:
 
-- `C:/GitHub/tBigNumber` available with `hbc/_tbignumber.hbc` and `lib/win/msvc64/_tbigNumber.lib`
+- `C:/GitHub/tBigNumber` available with `include/` and `lib/win/msvc64/_tbigNumber_msvc.lib`
 
 Validate detailed log:
 

@@ -3,11 +3,20 @@ hbnum: Released to Public Domain.
 */
 #include "hbnum.ch"
 #include "hblog.ch"
+#include "hbthread.ch"
+
+#define MOD_D_TEXT    1
+#define MOD_D_SCALED  2
+#define MOD_D_SCALE   3
 
 STATIC __cLastOperation := ""
 STATIC __cLastExpected := ""
 STATIC __cLastActual := ""
 STATIC __cLogFileName := ""
+STATIC __pSpinner := NIL
+STATIC __lSpinnerStop := .F.
+STATIC __cSpinnerLabel := ""
+STATIC __nModRandState := 1
 
 STATIC PROCEDURE __InitTestLog()
    LOCAL nStyle := HB_LOG_ST_DATE + HB_LOG_ST_ISODATE + HB_LOG_ST_TIME + HB_LOG_ST_LEVEL
@@ -35,6 +44,41 @@ STATIC PROCEDURE __SetTrace( cOperation, cExpected, cActual )
    __cLastOperation := cOperation
    __cLastExpected := cExpected
    __cLastActual := cActual
+RETURN
+
+STATIC PROCEDURE __SpinnerClear()
+   OutStd( Chr( 13 ) + Space( 140 ) + Chr( 13 ) )
+RETURN
+
+STATIC PROCEDURE __SpinnerThread( lStop, cLabel )
+   LOCAL cFrames := "|/-" + Chr( 92 )
+   LOCAL nFrame := 1
+
+   DO WHILE ! lStop
+      OutStd( Chr( 13 ) + "[RUN] " + SubStr( cFrames, nFrame, 1 ) + " " + cLabel )
+      nFrame := IIf( nFrame >= Len( cFrames ), 1, nFrame + 1 )
+      hb_idleSleep( 0.12 )
+   ENDDO
+RETURN
+
+STATIC PROCEDURE __SpinnerStart( cLabel )
+   __SpinnerStop()
+   __cSpinnerLabel := cLabel
+   __lSpinnerStop := .F.
+   __pSpinner := hb_threadStart( HB_THREAD_INHERIT_MEMVARS, @__SpinnerThread(), ;
+      @__lSpinnerStop, @__cSpinnerLabel )
+RETURN
+
+STATIC PROCEDURE __SpinnerStop()
+   LOCAL pSpinner := __pSpinner
+
+   IF pSpinner != NIL
+      __lSpinnerStop := .T.
+      hb_threadJoin( pSpinner )
+      __pSpinner := NIL
+   ENDIF
+
+   __SpinnerClear()
 RETURN
 
 STATIC FUNCTION __RunTest( cName, lResult )
@@ -80,6 +124,238 @@ STATIC FUNCTION __JoinTextArray( aValues )
 
 RETURN cOut
 
+STATIC PROCEDURE __ModSeedRand( nSeed )
+   nSeed := Int( nSeed )
+
+   IF nSeed <= 0
+      nSeed := 1
+   ENDIF
+
+   __nModRandState := Mod( nSeed, 2147483647 )
+   IF __nModRandState <= 0
+      __nModRandState += 2147483646
+   ENDIF
+RETURN
+
+STATIC FUNCTION __ModNextRand()
+   __nModRandState := Mod( __nModRandState * 48271, 2147483647 )
+
+   IF __nModRandState <= 0
+      __nModRandState += 2147483646
+   ENDIF
+
+RETURN __nModRandState
+
+STATIC FUNCTION __ModRandInt( nMin, nMax )
+   LOCAL nRange
+
+   IF nMax <= nMin
+      RETURN nMin
+   ENDIF
+
+   nRange := ( nMax - nMin ) + 1
+RETURN nMin + Mod( __ModNextRand(), nRange )
+
+STATIC FUNCTION __ModCanonical( cValue )
+   LOCAL cText := AllTrim( cValue )
+   LOCAL lNeg := .F.
+   LOCAL nDot
+   LOCAL cInt
+   LOCAL cDec
+
+   IF Empty( cText )
+      RETURN "0"
+   ENDIF
+
+   IF Left( cText, 1 ) == "+"
+      cText := SubStr( cText, 2 )
+   ENDIF
+
+   IF Left( cText, 1 ) == "-"
+      lNeg := .T.
+      cText := SubStr( cText, 2 )
+   ENDIF
+
+   nDot := At( ".", cText )
+   IF nDot > 0
+      cInt := Left( cText, nDot - 1 )
+      cDec := SubStr( cText, nDot + 1 )
+   ELSE
+      cInt := cText
+      cDec := ""
+   ENDIF
+
+   IF Empty( cInt )
+      cInt := "0"
+   ENDIF
+
+   DO WHILE Len( cInt ) > 1 .AND. Left( cInt, 1 ) == "0"
+      cInt := SubStr( cInt, 2 )
+   ENDDO
+
+   DO WHILE ! Empty( cDec ) .AND. Right( cDec, 1 ) == "0"
+      cDec := Left( cDec, Len( cDec ) - 1 )
+   ENDDO
+
+   IF cInt == "0" .AND. Empty( cDec )
+      RETURN "0"
+   ENDIF
+
+   cText := cInt
+   IF ! Empty( cDec )
+      cText += "." + cDec
+   ENDIF
+
+   IF lNeg
+      cText := "-" + cText
+   ENDIF
+
+RETURN cText
+
+STATIC FUNCTION __ModPow10( nExp )
+   LOCAL nValue := 1
+   LOCAL nPos
+
+   FOR nPos := 1 TO nExp
+      nValue *= 10
+   NEXT
+
+RETURN nValue
+
+STATIC FUNCTION __ModScaledToText( nScaled, nScale )
+   LOCAL lNeg := nScaled < 0
+   LOCAL cDigits := __ModCanonical( hb_ntos( Abs( nScaled ) ) )
+   LOCAL cText
+
+   IF nScaled == 0
+      RETURN "0"
+   ENDIF
+
+   IF nScale == 0
+      cText := cDigits
+   ELSEIF nScale >= Len( cDigits )
+      cText := "0." + Replicate( "0", nScale - Len( cDigits ) ) + cDigits
+   ELSE
+      cText := Left( cDigits, Len( cDigits ) - nScale ) + "." + Right( cDigits, nScale )
+   ENDIF
+
+   IF lNeg
+      cText := "-" + cText
+   ENDIF
+
+RETURN __ModCanonical( cText )
+
+STATIC FUNCTION __ModIntExpectedText( nValue )
+RETURN __ModCanonical( hb_ntos( nValue ) )
+
+STATIC FUNCTION __ModMakeDecimalSpec( nScaled, nScale )
+RETURN { __ModScaledToText( nScaled, nScale ), nScaled, nScale }
+
+STATIC FUNCTION __ModRandomDecimalSpec( nMaxAbsScaled, nMaxScale )
+   LOCAL nScale := __ModRandInt( 0, nMaxScale )
+   LOCAL nScaled := __ModRandInt( -nMaxAbsScaled, nMaxAbsScaled )
+
+RETURN __ModMakeDecimalSpec( nScaled, nScale )
+
+STATIC FUNCTION __ModAlignScaled( aSpec, nTargetScale )
+RETURN aSpec[ MOD_D_SCALED ] * __ModPow10( nTargetScale - aSpec[ MOD_D_SCALE ] )
+
+STATIC FUNCTION __ModTruncDiv( nNum, nDen )
+   LOCAL nQ
+
+   nQ := Int( Abs( nNum ) / Abs( nDen ) )
+   IF ( nNum < 0 .AND. nDen > 0 ) .OR. ( nNum > 0 .AND. nDen < 0 )
+      nQ := -nQ
+   ENDIF
+
+RETURN nQ
+
+STATIC FUNCTION __ModDecimalExpected( aA, aB )
+   LOCAL nScale := Max( aA[ MOD_D_SCALE ], aB[ MOD_D_SCALE ] )
+   LOCAL nA := __ModAlignScaled( aA, nScale )
+   LOCAL nB := __ModAlignScaled( aB, nScale )
+   LOCAL nQ := __ModTruncDiv( nA, nB )
+   LOCAL nR := nA - ( nQ * nB )
+
+RETURN __ModMakeDecimalSpec( nR, nScale )
+
+STATIC FUNCTION __ModValidateNumber( oNum, cContext )
+   LOCAL hNum
+   LOCAL nSign
+   LOCAL nScale
+   LOCAL nUsed
+   LOCAL aLimbs
+   LOCAL nPos
+   LOCAL nLimb
+
+   IF ValType( oNum ) != "O"
+      __SetTrace( cContext, "object result", "non-object result" )
+      RETURN .F.
+   ENDIF
+
+   hNum := oNum:hbNum
+   IF ValType( hNum ) != "H"
+      __SetTrace( cContext, "hash result", "non-hash hbNum" )
+      RETURN .F.
+   ENDIF
+
+   nSign := hNum[ HBNUM_SIGN ]
+   nScale := hNum[ HBNUM_SCALE ]
+   nUsed := hNum[ HBNUM_USED ]
+   aLimbs := hNum[ HBNUM_LIMBS ]
+
+   IF ! HB_ISNUMERIC( nSign ) .OR. !( nSign == -1 .OR. nSign == 0 .OR. nSign == 1 )
+      __SetTrace( cContext, "valid sign", "invalid sign=" + hb_ValToExp( nSign ) )
+      RETURN .F.
+   ENDIF
+
+   IF ! HB_ISNUMERIC( nScale ) .OR. nScale < 0
+      __SetTrace( cContext, "non-negative scale", "invalid scale=" + hb_ValToExp( nScale ) )
+      RETURN .F.
+   ENDIF
+
+   IF ! HB_ISNUMERIC( nUsed ) .OR. nUsed < 0
+      __SetTrace( cContext, "non-negative used", "invalid used=" + hb_ValToExp( nUsed ) )
+      RETURN .F.
+   ENDIF
+
+   IF ValType( aLimbs ) != "A"
+      __SetTrace( cContext, "limbs array", "non-array limbs" )
+      RETURN .F.
+   ENDIF
+
+   IF Len( aLimbs ) != nUsed
+      __SetTrace( cContext, "used matches limbs len", "used=" + hb_ntos( nUsed ) + ", len=" + hb_ntos( Len( aLimbs ) ) )
+      RETURN .F.
+   ENDIF
+
+   FOR nPos := 1 TO Len( aLimbs )
+      nLimb := aLimbs[ nPos ]
+      IF ! HB_ISNUMERIC( nLimb ) .OR. Int( nLimb ) != nLimb .OR. nLimb < 0 .OR. nLimb >= HBNUM_BASE
+         __SetTrace( cContext, "limb in range", "limb[" + hb_ntos( nPos ) + "]=" + hb_ValToExp( nLimb ) )
+         RETURN .F.
+      ENDIF
+   NEXT
+
+   IF nUsed == 0
+      IF nSign != 0 .OR. nScale != 0
+         __SetTrace( cContext, "normalized zero", ;
+            "sign=" + hb_ntos( nSign ) + ", scale=" + hb_ntos( nScale ) )
+         RETURN .F.
+      ENDIF
+   ELSE
+      IF nSign == 0
+         __SetTrace( cContext, "non-zero sign", "sign=0" )
+         RETURN .F.
+      ENDIF
+      IF aLimbs[ Len( aLimbs ) ] == 0
+         __SetTrace( cContext, "no leading zero limb", "top limb is zero" )
+         RETURN .F.
+      ENDIF
+   ENDIF
+
+RETURN .T.
+
 FUNCTION Main()
    LOCAL lOk := .T.
 
@@ -87,6 +363,7 @@ FUNCTION Main()
 
    ? "== ADD TESTS =="
    __LogLine( "GROUP", "== ADD TESTS ==", HB_LOG_INFO )
+   __SpinnerStart( "ADD TESTS" )
    lOk := __RunTest( "Test_Add_Simple", Test_Add_Simple() ) .AND. lOk
    lOk := __RunTest( "Test_Add_Carry", Test_Add_Carry() ) .AND. lOk
    lOk := __RunTest( "Test_Add_DifferentSize", Test_Add_DifferentSize() ) .AND. lOk
@@ -95,27 +372,33 @@ FUNCTION Main()
    lOk := __RunTest( "Test_Add_Internal", Test_Add_Internal() ) .AND. lOk
    lOk := __RunTest( "Test_Add_Commutative", Test_Add_Commutative() ) .AND. lOk
    lOk := __RunTest( "Test_Add_NoMutation", Test_Add_NoMutation() ) .AND. lOk
+   __SpinnerStop()
 
    ? "== SUB TESTS =="
    __LogLine( "GROUP", "== SUB TESTS ==", HB_LOG_INFO )
+   __SpinnerStart( "SUB TESTS" )
    lOk := __RunTest( "Test_Sub_Simple", Test_Sub_Simple() ) .AND. lOk
    lOk := __RunTest( "Test_Sub_Borrow", Test_Sub_Borrow() ) .AND. lOk
    lOk := __RunTest( "Test_Sub_DifferentSize", Test_Sub_DifferentSize() ) .AND. lOk
    lOk := __RunTest( "Test_Sub_Negative", Test_Sub_Negative() ) .AND. lOk
    lOk := __RunTest( "Test_Sub_Zero", Test_Sub_Zero() ) .AND. lOk
    lOk := __RunTest( "Test_Sub_NoMutation", Test_Sub_NoMutation() ) .AND. lOk
+   __SpinnerStop()
 
    ? "== MUL TESTS =="
    __LogLine( "GROUP", "== MUL TESTS ==", HB_LOG_INFO )
+   __SpinnerStart( "MUL TESTS" )
    lOk := __RunTest( "Test_Mul_Simple", Test_Mul_Simple() ) .AND. lOk
    lOk := __RunTest( "Test_Mul_Carry", Test_Mul_Carry() ) .AND. lOk
    lOk := __RunTest( "Test_Mul_DifferentSize", Test_Mul_DifferentSize() ) .AND. lOk
    lOk := __RunTest( "Test_Mul_Negative", Test_Mul_Negative() ) .AND. lOk
    lOk := __RunTest( "Test_Mul_Zero", Test_Mul_Zero() ) .AND. lOk
    lOk := __RunTest( "Test_Mul_NoMutation", Test_Mul_NoMutation() ) .AND. lOk
+   __SpinnerStop()
 
    ? "== DIV TESTS =="
    __LogLine( "GROUP", "== DIV TESTS ==", HB_LOG_INFO )
+   __SpinnerStart( "DIV TESTS" )
    lOk := __RunTest( "Test_Div_Simple", Test_Div_Simple() ) .AND. lOk
    lOk := __RunTest( "Test_Div_Truncate", Test_Div_Truncate() ) .AND. lOk
    lOk := __RunTest( "Test_Div_Precision", Test_Div_Precision() ) .AND. lOk
@@ -124,9 +407,11 @@ FUNCTION Main()
    lOk := __RunTest( "Test_Div_NoMutation", Test_Div_NoMutation() ) .AND. lOk
    lOk := __RunTest( "Test_Div_Exact_NoPrecision", Test_Div_Exact_NoPrecision() ) .AND. lOk
    lOk := __RunTest( "Test_Div_NonTerminating_RequiresPrecision", Test_Div_NonTerminating_RequiresPrecision() ) .AND. lOk
+   __SpinnerStop()
 
    ? "== PRECISION/ROUNDING TESTS =="
    __LogLine( "GROUP", "== PRECISION/ROUNDING TESTS ==", HB_LOG_INFO )
+   __SpinnerStart( "PRECISION/ROUNDING TESTS" )
    lOk := __RunTest( "Test_Context_DefaultPrecision", Test_Context_DefaultPrecision() ) .AND. lOk
    lOk := __RunTest( "Test_Context_InstancePrecision", Test_Context_InstancePrecision() ) .AND. lOk
    lOk := __RunTest( "Test_Context_Propagation", Test_Context_Propagation() ) .AND. lOk
@@ -136,9 +421,11 @@ FUNCTION Main()
    lOk := __RunTest( "Test_Floor_Negative", Test_Floor_Negative() ) .AND. lOk
    lOk := __RunTest( "Test_Ceiling_Positive", Test_Ceiling_Positive() ) .AND. lOk
    lOk := __RunTest( "Test_Rounding_NoMutation", Test_Rounding_NoMutation() ) .AND. lOk
+   __SpinnerStop()
 
    ? "== ROOT/LOG TESTS =="
    __LogLine( "GROUP", "== ROOT/LOG TESTS ==", HB_LOG_INFO )
+   __SpinnerStart( "ROOT/LOG TESTS" )
    lOk := __RunTest( "Test_RootContext_DefaultPrecision", Test_RootContext_DefaultPrecision() ) .AND. lOk
    lOk := __RunTest( "Test_RootContext_InstancePropagation", Test_RootContext_InstancePropagation() ) .AND. lOk
    lOk := __RunTest( "Test_Sqrt_Exact_NoPrecision", Test_Sqrt_Exact_NoPrecision() ) .AND. lOk
@@ -152,9 +439,11 @@ FUNCTION Main()
    lOk := __RunTest( "Test_Log_NonTerminating_RequiresPrecision", Test_Log_NonTerminating_RequiresPrecision() ) .AND. lOk
    lOk := __RunTest( "Test_Ln_ExactOne_NoPrecision", Test_Ln_ExactOne_NoPrecision() ) .AND. lOk
    lOk := __RunTest( "Test_NthRoot_Approx_WithPrecision", Test_NthRoot_Approx_WithPrecision() ) .AND. lOk
+   __SpinnerStop()
 
    ? "== DOMAIN/POLICY TESTS =="
    __LogLine( "GROUP", "== DOMAIN/POLICY TESTS ==", HB_LOG_INFO )
+   __SpinnerStart( "DOMAIN/POLICY TESTS" )
    lOk := __RunTest( "Test_Div_ByZero_Error", Test_Div_ByZero_Error() ) .AND. lOk
    lOk := __RunTest( "Test_Sqrt_Negative_Error", Test_Sqrt_Negative_Error() ) .AND. lOk
    lOk := __RunTest( "Test_NthRoot_DegreeZero_Error", Test_NthRoot_DegreeZero_Error() ) .AND. lOk
@@ -164,9 +453,11 @@ FUNCTION Main()
    lOk := __RunTest( "Test_Log10_NonPositive_Error", Test_Log10_NonPositive_Error() ) .AND. lOk
    lOk := __RunTest( "Test_Ln_NonPositive_Error", Test_Ln_NonPositive_Error() ) .AND. lOk
    lOk := __RunTest( "Test_PowInt_NegativeExponent_Error", Test_PowInt_NegativeExponent_Error() ) .AND. lOk
+   __SpinnerStop()
 
    ? "== EXT TESTS =="
    __LogLine( "GROUP", "== EXT TESTS ==", HB_LOG_INFO )
+   __SpinnerStart( "EXT TESTS" )
    lOk := __RunTest( "Test_Compare_Eq", Test_Compare_Eq() ) .AND. lOk
    lOk := __RunTest( "Test_Compare_Order", Test_Compare_Order() ) .AND. lOk
    lOk := __RunTest( "Test_Compare_RawMatrix", Test_Compare_RawMatrix() ) .AND. lOk
@@ -180,6 +471,8 @@ FUNCTION Main()
    lOk := __RunTest( "Test_Mod_DecimalScale", Test_Mod_DecimalScale() ) .AND. lOk
    lOk := __RunTest( "Test_Mod_ScaledDividendLessThanDivisor", Test_Mod_ScaledDividendLessThanDivisor() ) .AND. lOk
    lOk := __RunTest( "Test_Mod_NoMutation", Test_Mod_NoMutation() ) .AND. lOk
+   lOk := __RunTest( "Test_Mod_Fuzz_SmallIntOracle", Test_Mod_Fuzz_SmallIntOracle() ) .AND. lOk
+   lOk := __RunTest( "Test_Mod_Fuzz_SmallDecimalOracle", Test_Mod_Fuzz_SmallDecimalOracle() ) .AND. lOk
    lOk := __RunTest( "Test_PowInt_Simple", Test_PowInt_Simple() ) .AND. lOk
    lOk := __RunTest( "Test_PowInt_ZeroExponent", Test_PowInt_ZeroExponent() ) .AND. lOk
    lOk := __RunTest( "Test_PowInt_NegativeBase", Test_PowInt_NegativeBase() ) .AND. lOk
@@ -187,9 +480,11 @@ FUNCTION Main()
    lOk := __RunTest( "Test_PowInt_DecimalBase", Test_PowInt_DecimalBase() ) .AND. lOk
    lOk := __RunTest( "Test_PowInt_ZeroBasePositiveExponent", Test_PowInt_ZeroBasePositiveExponent() ) .AND. lOk
    lOk := __RunTest( "Test_PowInt_NoMutation", Test_PowInt_NoMutation() ) .AND. lOk
+   __SpinnerStop()
 
    ? "== NUMBER THEORY TESTS =="
    __LogLine( "GROUP", "== NUMBER THEORY TESTS ==", HB_LOG_INFO )
+   __SpinnerStart( "NUMBER THEORY TESTS" )
    lOk := __RunTest( "Test_Gcd_Simple", Test_Gcd_Simple() ) .AND. lOk
    lOk := __RunTest( "Test_Gcd_Zero", Test_Gcd_Zero() ) .AND. lOk
    lOk := __RunTest( "Test_Gcd_Negative", Test_Gcd_Negative() ) .AND. lOk
@@ -216,9 +511,11 @@ FUNCTION Main()
    lOk := __RunTest( "Test_Randomize_CustomLargeRange", Test_Randomize_CustomLargeRange() ) .AND. lOk
    lOk := __RunTest( "Test_Fibonacci_Threshold10", Test_Fibonacci_Threshold10() ) .AND. lOk
    lOk := __RunTest( "Test_Fibonacci_Threshold1000000", Test_Fibonacci_Threshold1000000() ) .AND. lOk
+   __SpinnerStop()
 
    ? "== tBigNtst COMPAT TESTS =="
    __LogLine( "GROUP", "== tBigNtst COMPAT TESTS ==", HB_LOG_INFO )
+   __SpinnerStart( "tBigNtst COMPAT TESTS" )
    lOk := __RunTest( "Test_TBigNtst19_Factorial_100", Test_TBigNtst19_Factorial_100() ) .AND. lOk
    lOk := __RunTest( "Test_TBigNtst24_Fi_97", Test_TBigNtst24_Fi_97() ) .AND. lOk
    lOk := __RunTest( "Test_TBigNtst_Add_RepeatedDelta", Test_TBigNtst_Add_RepeatedDelta() ) .AND. lOk
@@ -237,6 +534,7 @@ FUNCTION Main()
    lOk := __RunTest( "Test_TBigNtst37_Fibonacci_Mersenne31", Test_TBigNtst37_Fibonacci_Mersenne31() ) .AND. lOk
    lOk := __RunTest( "Test_TBigNtst38_BigMersenne127", Test_TBigNtst38_BigMersenne127() ) .AND. lOk
    lOk := __RunTest( "Test_TBigNtst39_BigGoogol", Test_TBigNtst39_BigGoogol() ) .AND. lOk
+   __SpinnerStop()
 
    IF lOk
       ? "ALL TESTS PASSED"
@@ -1106,6 +1404,125 @@ FUNCTION Test_Mod_NoMutation()
 
    __SetTrace( "imutabilidade de entrada em 10.5 % (-0.2)", "A=10.5, B=-0.2, R=0.1", cActual )
 RETURN lResult
+
+
+FUNCTION Test_Mod_Fuzz_SmallIntOracle()
+   LOCAL nSeed := 20260421
+   LOCAL nLoops := 400
+   LOCAL nI
+   LOCAL nA
+   LOCAL nB
+   LOCAL nQ
+   LOCAL nR
+   LOCAL oA
+   LOCAL oB
+   LOCAL oR
+   LOCAL cAStable
+   LOCAL cBStable
+
+   __ModSeedRand( nSeed )
+
+   FOR nI := 1 TO nLoops
+      nA := __ModRandInt( -1000000, 1000000 )
+      nB := __ModRandInt( -1000000, 1000000 )
+      IF nB == 0
+         nB := 1
+      ENDIF
+
+      oA := HBNum():New( __ModIntExpectedText( nA ) )
+      oB := HBNum():New( __ModIntExpectedText( nB ) )
+      cAStable := oA:ToString()
+      cBStable := oB:ToString()
+      oR := oA:Mod( oB )
+
+      IF ! __ModValidateNumber( oR, "fuzz int mod #" + hb_ntos( nI ) )
+         RETURN .F.
+      ENDIF
+
+      nQ := __ModTruncDiv( nA, nB )
+      nR := nA - ( nQ * nB )
+
+      IF oR:ToString() != __ModIntExpectedText( nR )
+         __SetTrace( ;
+            "fuzz int mod #" + hb_ntos( nI ) + " seed=" + hb_ntos( nSeed ) + ;
+               " for " + cAStable + " % " + cBStable, ;
+            __ModIntExpectedText( nR ), ;
+            oR:ToString() )
+         RETURN .F.
+      ENDIF
+
+      IF oA:ToString() != cAStable .OR. oB:ToString() != cBStable
+         __SetTrace( ;
+            "fuzz int mod #" + hb_ntos( nI ) + " mutation", ;
+            "A=" + cAStable + ", B=" + cBStable, ;
+            "A=" + oA:ToString() + ", B=" + oB:ToString() )
+         RETURN .F.
+      ENDIF
+   NEXT
+
+   __SetTrace( ;
+      "fuzz int mod seed=" + hb_ntos( nSeed ), ;
+      "all " + hb_ntos( nLoops ) + " oracle cases matched", ;
+      "all " + hb_ntos( nLoops ) + " oracle cases matched" )
+RETURN .T.
+
+
+FUNCTION Test_Mod_Fuzz_SmallDecimalOracle()
+   LOCAL nSeed := 20260422
+   LOCAL nLoops := 400
+   LOCAL nI
+   LOCAL aA
+   LOCAL aB
+   LOCAL aExpected
+   LOCAL oA
+   LOCAL oB
+   LOCAL oR
+   LOCAL cAStable
+   LOCAL cBStable
+
+   __ModSeedRand( nSeed )
+
+   FOR nI := 1 TO nLoops
+      aA := __ModRandomDecimalSpec( 100000, 4 )
+      aB := __ModRandomDecimalSpec( 100000, 4 )
+      IF aB[ MOD_D_SCALED ] == 0
+         aB := __ModMakeDecimalSpec( 1, 0 )
+      ENDIF
+
+      oA := HBNum():New( aA[ MOD_D_TEXT ] )
+      oB := HBNum():New( aB[ MOD_D_TEXT ] )
+      cAStable := oA:ToString()
+      cBStable := oB:ToString()
+      oR := oA:Mod( oB )
+
+      IF ! __ModValidateNumber( oR, "fuzz decimal mod #" + hb_ntos( nI ) )
+         RETURN .F.
+      ENDIF
+
+      aExpected := __ModDecimalExpected( aA, aB )
+      IF oR:ToString() != aExpected[ MOD_D_TEXT ]
+         __SetTrace( ;
+            "fuzz decimal mod #" + hb_ntos( nI ) + " seed=" + hb_ntos( nSeed ) + ;
+               " for " + cAStable + " % " + cBStable, ;
+            aExpected[ MOD_D_TEXT ], ;
+            oR:ToString() )
+         RETURN .F.
+      ENDIF
+
+      IF oA:ToString() != cAStable .OR. oB:ToString() != cBStable
+         __SetTrace( ;
+            "fuzz decimal mod #" + hb_ntos( nI ) + " mutation", ;
+            "A=" + cAStable + ", B=" + cBStable, ;
+            "A=" + oA:ToString() + ", B=" + oB:ToString() )
+         RETURN .F.
+      ENDIF
+   NEXT
+
+   __SetTrace( ;
+      "fuzz decimal mod seed=" + hb_ntos( nSeed ), ;
+      "all " + hb_ntos( nLoops ) + " oracle cases matched", ;
+      "all " + hb_ntos( nLoops ) + " oracle cases matched" )
+RETURN .T.
 
 
 FUNCTION Test_PowInt_Simple()

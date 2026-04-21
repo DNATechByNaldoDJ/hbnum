@@ -1,0 +1,6 @@
+# hbnum: Released to Public Domain.
+# Local package that pins comparative builds to the MSVC-specific tBigNumber
+# library instead of the generic package alias.
+incpaths=C:/GitHub/tBigNumber/include/
+libpaths=C:/GitHub/tBigNumber/lib/win/msvc64
+libs=_tbigNumber_msvc

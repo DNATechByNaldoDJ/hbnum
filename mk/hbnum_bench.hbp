@@ -16,6 +16,8 @@ hbmzip.hbc
 hbziparc.hbc
 hbfoxpro.hbc
 
+# Console progress spinner uses a helper thread during long-running cases.
+-mt
 -i../include
 
 {win}-ldflag=/NODEFAULTLIB:msvcrt

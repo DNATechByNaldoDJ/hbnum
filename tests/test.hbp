@@ -1,5 +1,7 @@
 # hbnum: Released to Public Domain.
 
+# Console progress spinner uses a helper thread during long-running tests.
+-mt
 -i../include
 -otest_hbnum
 

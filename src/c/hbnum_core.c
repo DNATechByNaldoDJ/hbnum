@@ -411,15 +411,17 @@ static void hbnum_mag_shift_right_one_inplace( HB_U32 * pLimbs, HB_SIZE * pnUsed
       --( *pnUsed );
 }
 
-static HB_BOOL hbnum_mag_div( const HB_U32 * pDividend, HB_SIZE nDividendUsed, const HB_U32 * pDivisor, HB_SIZE nDivisorUsed, HB_U32 ** ppQuot, HB_SIZE * pnQuotUsed )
+static HB_BOOL hbnum_mag_divmod( const HB_U32 * pDividend, HB_SIZE nDividendUsed, const HB_U32 * pDivisor, HB_SIZE nDivisorUsed, HB_U32 ** ppQuot, HB_SIZE * pnQuotUsed, HB_U32 ** ppRem, HB_SIZE * pnRemUsed )
 {
-   HB_U32 * pRemainder;
-   HB_SIZE nRemainderUsed;
+   HB_BOOL fNeedQuot = ppQuot != NULL && pnQuotUsed != NULL;
+   HB_BOOL fNeedRem = ppRem != NULL && pnRemUsed != NULL;
+   HB_U32 * pRemainder = NULL;
+   HB_SIZE nRemainderUsed = 0;
    HB_U32 * pShiftedDivisor;
    HB_SIZE nShiftedDivisorUsed;
    HB_SIZE nShift;
-   HB_U32 * pQuot;
-   HB_SIZE nQuotCap;
+   HB_U32 * pQuot = NULL;
+   HB_SIZE nQuotUsed = 0;
    HB_SIZE nLoop;
 
    if( nDivisorUsed == 0 )
@@ -427,8 +429,57 @@ static HB_BOOL hbnum_mag_div( const HB_U32 * pDividend, HB_SIZE nDividendUsed, c
 
    if( nDividendUsed == 0 || hbnum_mag_cmp( pDividend, nDividendUsed, pDivisor, nDivisorUsed ) < 0 )
    {
-      *ppQuot = NULL;
-      *pnQuotUsed = 0;
+      if( fNeedQuot )
+      {
+         *ppQuot = NULL;
+         *pnQuotUsed = 0;
+      }
+
+      if( fNeedRem )
+      {
+         *ppRem = hbnum_limbs_dup( pDividend, nDividendUsed );
+         *pnRemUsed = nDividendUsed;
+      }
+
+      return HB_TRUE;
+   }
+
+   if( nDivisorUsed == 1 )
+   {
+      HB_U32 nRemainderSmall;
+
+      if( fNeedQuot )
+      {
+         pQuot = hbnum_limbs_dup( pDividend, nDividendUsed );
+         nQuotUsed = nDividendUsed;
+         nRemainderSmall = hbnum_mag_div_small_inplace( pQuot, &nQuotUsed, pDivisor[ 0 ] );
+      }
+      else
+      {
+         nRemainderSmall = hbnum_mag_mod_small( pDividend, nDividendUsed, pDivisor[ 0 ] );
+      }
+
+      if( fNeedQuot )
+      {
+         *ppQuot = pQuot;
+         *pnQuotUsed = nQuotUsed;
+      }
+
+      if( fNeedRem )
+      {
+         if( nRemainderSmall != 0 )
+         {
+            *ppRem = ( HB_U32 * ) hb_xgrab( sizeof( HB_U32 ) );
+            ( *ppRem )[ 0 ] = nRemainderSmall;
+            *pnRemUsed = 1;
+         }
+         else
+         {
+            *ppRem = NULL;
+            *pnRemUsed = 0;
+         }
+      }
+
       return HB_TRUE;
    }
 
@@ -437,9 +488,12 @@ static HB_BOOL hbnum_mag_div( const HB_U32 * pDividend, HB_SIZE nDividendUsed, c
    nRemainderUsed = nDividendUsed;
    hbnum_mag_shift_left_bits( pDivisor, nDivisorUsed, nShift, &pShiftedDivisor, &nShiftedDivisorUsed );
 
-   nQuotCap = ( nShift / HBNUM_LIMB_BITS ) + 1;
-   pQuot = ( HB_U32 * ) hb_xgrab( sizeof( HB_U32 ) * nQuotCap );
-   memset( pQuot, 0, sizeof( HB_U32 ) * nQuotCap );
+   if( fNeedQuot )
+   {
+      nQuotUsed = ( nShift / HBNUM_LIMB_BITS ) + 1;
+      pQuot = ( HB_U32 * ) hb_xgrab( sizeof( HB_U32 ) * nQuotUsed );
+      memset( pQuot, 0, sizeof( HB_U32 ) * nQuotUsed );
+   }
 
    for( nLoop = nShift + 1; nLoop > 0; --nLoop )
    {
@@ -447,26 +501,57 @@ static HB_BOOL hbnum_mag_div( const HB_U32 * pDividend, HB_SIZE nDividendUsed, c
 
       if( hbnum_mag_cmp( pRemainder, nRemainderUsed, pShiftedDivisor, nShiftedDivisorUsed ) >= 0 )
       {
-         HB_SIZE nLimb = nBit / HBNUM_LIMB_BITS;
-         HB_SIZE nOffset = nBit % HBNUM_LIMB_BITS;
-
          hbnum_mag_sub_inplace( pRemainder, &nRemainderUsed, pShiftedDivisor, nShiftedDivisorUsed );
-         pQuot[ nLimb ] |= ( HB_U32 ) ( 1U << nOffset );
+
+         if( fNeedQuot )
+         {
+            HB_SIZE nLimb = nBit / HBNUM_LIMB_BITS;
+            HB_SIZE nOffset = nBit % HBNUM_LIMB_BITS;
+
+            pQuot[ nLimb ] |= ( HB_U32 ) ( 1U << nOffset );
+         }
       }
 
       if( nBit > 0 )
          hbnum_mag_shift_right_one_inplace( pShiftedDivisor, &nShiftedDivisorUsed );
    }
 
-   hb_xfree( pRemainder );
    hb_xfree( pShiftedDivisor );
 
-   while( nQuotCap > 0 && pQuot[ nQuotCap - 1 ] == 0 )
-      --nQuotCap;
+   if( fNeedQuot )
+   {
+      while( nQuotUsed > 0 && pQuot[ nQuotUsed - 1 ] == 0 )
+         --nQuotUsed;
 
-   *ppQuot = pQuot;
-   *pnQuotUsed = nQuotCap;
+      *ppQuot = pQuot;
+      *pnQuotUsed = nQuotUsed;
+   }
+
+   if( fNeedRem )
+   {
+      if( nRemainderUsed == 0 )
+      {
+         hb_xfree( pRemainder );
+         *ppRem = NULL;
+      }
+      else
+      {
+         *ppRem = pRemainder;
+      }
+
+      *pnRemUsed = nRemainderUsed;
+   }
+   else
+   {
+      hb_xfree( pRemainder );
+   }
+
    return HB_TRUE;
+}
+
+static HB_BOOL hbnum_mag_div( const HB_U32 * pDividend, HB_SIZE nDividendUsed, const HB_U32 * pDivisor, HB_SIZE nDivisorUsed, HB_U32 ** ppQuot, HB_SIZE * pnQuotUsed )
+{
+   return hbnum_mag_divmod( pDividend, nDividendUsed, pDivisor, nDivisorUsed, ppQuot, pnQuotUsed, NULL, NULL );
 }
 
 static HB_BOOL hbnum_native_clone_scaled( const HBNumNative * pSrc, HB_SIZE nTargetScale, HBNumNative * pDst )
@@ -645,6 +730,51 @@ HB_BOOL hbnum_native_div( const HBNumNative * pA, const HBNumNative * pB, HB_SIZ
    pResult->used = nQuotUsed;
    pResult->limbs = pQuot;
    hbnum_native_normalize( pResult );
+   return HB_TRUE;
+}
+
+HB_BOOL hbnum_native_mod( const HBNumNative * pA, const HBNumNative * pB, HBNumNative * pResult )
+{
+   HBNumNative nAA;
+   HBNumNative nBB;
+   HB_SIZE nScale;
+   HB_U32 * pRem = NULL;
+   HB_SIZE nRemUsed = 0;
+
+   hbnum_native_init( pResult );
+   hbnum_native_init( &nAA );
+   hbnum_native_init( &nBB );
+
+   if( pB->used == 0 )
+      return HB_FALSE;
+
+   if( pA->used == 0 )
+      return HB_TRUE;
+
+   if( ! hbnum_native_align_scales( pA, pB, &nAA, &nBB, &nScale ) )
+      return HB_FALSE;
+
+   if( nAA.used > 0 )
+      nAA.sign = 1;
+
+   if( nBB.used > 0 )
+      nBB.sign = 1;
+
+   if( ! hbnum_mag_divmod( nAA.limbs, nAA.used, nBB.limbs, nBB.used, NULL, NULL, &pRem, &nRemUsed ) )
+   {
+      hbnum_native_release( &nAA );
+      hbnum_native_release( &nBB );
+      return HB_FALSE;
+   }
+
+   pResult->sign = pA->sign < 0 ? -1 : 1;
+   pResult->scale = nScale;
+   pResult->used = nRemUsed;
+   pResult->limbs = pRem;
+   hbnum_native_normalize( pResult );
+
+   hbnum_native_release( &nAA );
+   hbnum_native_release( &nBB );
    return HB_TRUE;
 }
 

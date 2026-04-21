@@ -2,8 +2,34 @@
      * Change  ! Fix  % Optimize  + Add  - Remove  ; Comment
    Entries may not always be in chronological/commit order.
    See license at the end of file.
-   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add integer ops: factorial, fi, MR, random)"
+   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add native mod, spinner UI, and MSVC tBig pin)"
 */
+
+2026-04-21 15:05 UTC naldodj (Add native mod, spinner UI, and MSVC tBig pin)
+  Implement a unified divmod routine and expose hbnum_native_mod (with header entry) to compute remainders directly;
+    update callers to use the new API and simplify internal mod-int helpers.
+  Add console spinner helpers (hbthread-based) to tests/bench_compare.prg and tests/test.prg and enable -mt in relevant hbp files for threaded progress display.
+  Introduce mk/hbnum_tbig_msvc.hbc to pin comparative builds to the MSVC tBigNumber library, update mk/hbnum_bench_tbig.hbp and README to use it, and remove the tBig link stubs.
+  Include new fuzzing test cases and helpers for mod (Test_Mod_Fuzz_SmallIntOracle, Test_Mod_Fuzz_SmallDecimalOracle) and other test orchestration tweaks.
+  Rebuilt MSVC test/bench executables updated.
+    + mk/hbnum_tbig_msvc.hbc
+    - tests/tbig_link_stubs.prg
+    * mk/hbnum_bench_tbig.hbp
+    * mk/hbnum_bench.hbp
+    * mk/hbnum_test.hbp
+    * mk/msvc64/hbnum_bench_tbig.exe
+    * mk/msvc64/hbnum_bench.exe
+    * mk/msvc64/hbnum_robust.exe
+    * mk/msvc64/hbnum_test.exe
+    * src/c/hbnum_core_integer_extra.c
+    * src/c/hbnum_core_math.c
+    * tests/bench_compare.prg
+    * tests/test.hbp
+    * README.md
+    * src/c/hbnum_core_number_theory.c
+    * src/c/hbnum_core.c
+    * src/c/hbnum_native_internal.h
+    * tests/test.prg
 
 2026-04-19 13:12 UTC naldodj (Add integer ops: factorial, fi, MR, random)
   Introduce integer-only utilities and expose them to HBNum: add new C source src/c/hbnum_core_integer_extra.c implementing Factorial, Fi (Euler's totient), MillerRabin, Randomize and related helpers (pow_mod, random range, factorial loop, etc.). Declare new HB_FUNCs in include/hbnum.h and include the new source in build scripts (mk/*.hbp). Expose methods on HBNum and HBNumIntegerOps (Factorial, Fi, MillerRabin, Randomize, Fibonacci) via updates to src/hb/hbnum.prg and src/hb/hbnum_integer_ops.prg.

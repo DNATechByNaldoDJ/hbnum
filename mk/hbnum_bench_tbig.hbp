@@ -17,8 +17,10 @@ hbziparc.hbc
 hbfoxpro.hbc
 
 -i../include
--iC:/GitHub/tBigNumber/include
-
+# tBigNumber is linked as a prebuilt MSVC library here, so its internal
+# compile-time defines must already exist in that external library build.
+# This target only needs the real MT Harbour VM because tBigNumber requests HB_MT.
+-mt
 -dHBNUM_BENCH_WITH_TBIG
 
 {win}-ldflag=/NODEFAULTLIB:msvcrt
@@ -38,8 +40,7 @@ hbnum_bench_tbig.hbc
 ../src/c/hbnum_core_integer_extra.c
 ../tests/hbnum_test_paths.prg
 ../tests/bench_compare.prg
-../tests/tbig_link_stubs.prg
 
-C:/GitHub/tBigNumber/hbc/_tbignumber.hbc
+hbnum_tbig_msvc.hbc
 
 -o./${hb_comp}/${hb_name}

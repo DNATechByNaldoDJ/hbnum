@@ -1533,31 +1533,21 @@ HB_FUNC( HBNUM_CORE_MOD )
    PHB_ITEM pB = hb_param( 2, HB_IT_HASH );
    HBNumNative nA;
    HBNumNative nB;
-   HBNumNative nQ;
-   HBNumNative nQB;
    HBNumNative nR;
    PHB_ITEM pHashResult;
    HB_BOOL fOk;
 
    hbnum_native_init( &nA );
    hbnum_native_init( &nB );
-   hbnum_native_init( &nQ );
-   hbnum_native_init( &nQB );
    hbnum_native_init( &nR );
 
    hbnum_native_from_hash( pA, &nA );
    hbnum_native_from_hash( pB, &nB );
 
-   fOk = hbnum_native_div( &nA, &nB, 0, &nQ );
+   fOk = hbnum_native_mod( &nA, &nB, &nR );
    if( !fOk )
    {
       hb_errRT_BASE( EG_ZERODIV, 0, "Division by zero", HB_ERR_FUNCNAME, 0 );
-   }
-   else
-   {
-      hbnum_native_mul( &nQ, &nB, &nQB );
-      hbnum_native_sub( &nA, &nQB, &nR );
-      hbnum_native_normalize( &nR );
    }
 
    pHashResult = hbnum_native_to_hash( &nR );
@@ -1565,8 +1555,6 @@ HB_FUNC( HBNUM_CORE_MOD )
 
    hbnum_native_release( &nA );
    hbnum_native_release( &nB );
-   hbnum_native_release( &nQ );
-   hbnum_native_release( &nQB );
    hbnum_native_release( &nR );
 }
 

@@ -28,29 +28,7 @@ static void hbnum_native_abs_clone( const HBNumNative * pSrc, HBNumNative * pDst
 
 static HB_BOOL hbnum_native_mod_int( const HBNumNative * pA, const HBNumNative * pB, HBNumNative * pResult )
 {
-   HBNumNative nQ;
-   HBNumNative nQB;
-   HB_BOOL fOk;
-
-   hbnum_native_init( &nQ );
-   hbnum_native_init( &nQB );
-   hbnum_native_init( pResult );
-
-   fOk = hbnum_native_div( pA, pB, 0, &nQ );
-   if( !fOk )
-   {
-      hbnum_native_release( &nQ );
-      hbnum_native_release( &nQB );
-      return HB_FALSE;
-   }
-
-   hbnum_native_mul( &nQ, pB, &nQB );
-   hbnum_native_sub( pA, &nQB, pResult );
-   hbnum_native_normalize( pResult );
-
-   hbnum_native_release( &nQ );
-   hbnum_native_release( &nQB );
-   return HB_TRUE;
+   return hbnum_native_mod( pA, pB, pResult );
 }
 
 HB_BOOL hbnum_native_gcd_int( const HBNumNative * pA, const HBNumNative * pB, HBNumNative * pResult )

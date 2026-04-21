@@ -32,6 +32,7 @@ HB_BOOL hbnum_native_add( const HBNumNative * pA, const HBNumNative * pB, HBNumN
 HB_BOOL hbnum_native_sub( const HBNumNative * pA, const HBNumNative * pB, HBNumNative * pResult );
 HB_BOOL hbnum_native_mul( const HBNumNative * pA, const HBNumNative * pB, HBNumNative * pResult );
 HB_BOOL hbnum_native_div( const HBNumNative * pA, const HBNumNative * pB, HB_SIZE nPrecision, HBNumNative * pResult );
+HB_BOOL hbnum_native_mod( const HBNumNative * pA, const HBNumNative * pB, HBNumNative * pResult );
 HB_BOOL hbnum_native_round( const HBNumNative * pA, HB_SIZE nPrecision, HBNumNative * pResult );
 HB_BOOL hbnum_native_truncate( const HBNumNative * pA, HB_SIZE nPrecision, HBNumNative * pResult );
 HB_BOOL hbnum_native_floor( const HBNumNative * pA, HB_SIZE nPrecision, HBNumNative * pResult );
