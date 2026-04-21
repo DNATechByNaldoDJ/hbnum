@@ -5,12 +5,12 @@ HBNum is an arbitrary precision numeric library designed for the Harbour ecosyst
 > > Any implementation MUST strictly follow these rules.
 
 > > ## 1. SYSTEM OVERVIEW HBNum is:
-> > > A **C-based numeric engine with a Harbour interface**Execution model:Harbour → orchestrationC       → computation
+> > > A **C-based numeric engine with a Harbour interface **Execution model:Harbour → orchestrationC       → computation
 > > ### HARD RULEIF heavy math is implemented in Harbour → WRONG
 
 > > ## 2. DESIGN PRINCIPLES- Harbour-first API (interface only)- ALL heavy computation MUST be in C- Arbitrary precision (memory-bound)- No hard-coded precision caps inside HBNum- Precision/approximation policy belongs to HBNumContext- Immutable-style operations- Deterministic arithmetic (no floating point)- Extensible architecture
 
-> > ## 3. DATA STRUCTURE (MANDATORY)Every number MUST follow EXACTLY this structure:
+> > ## 3. DATA STRUCTURE (MANDATORY) Every number MUST follow EXACTLY this structure:
 ```harbour
 {
    "nSign"  => -1 | 0 | 1,
@@ -188,7 +188,13 @@ Notes:
 ## 15. TEST CONTRACT (MANDATORY)> Every implementation MUST include test cases.
 ### 15.1 Test RequirementsEach operation MUST include:- Simple case- Carry / borrow case- Different sizes- Negative values- Zero handling- Extreme values
 ### 15.2 Test Format
-```harbourFUNCTION Test_Add_Simple()   LOCAL oA := HBNum():FromString("2")   LOCAL oB := HBNum():FromString("3")   LOCAL oR := oA:Add(oB)   RETURN oR:ToString() == "5"```
+```harbour
+FUNCTION Test_Add_Simple()
+   LOCAL oA := HBNum():FromString("2")
+   LOCAL oB := HBNum():FromString("3")
+   LOCAL oR := oA:Add(oB)
+RETURN oR:ToString() == "5"
+```
 
 ### 15.3 Mandatory ADD Tests
 ```harbour
@@ -304,8 +310,25 @@ FUNCTION Test_Add_Internal()
 
    RETURN ;
       oR:hbNum["nUsed"] > 1 .AND. ;
-      oR:hbNum["nSign"] == 1```---### 15.5 Property-Based Tests```harbourFUNCTION Test_Add_Commutative()   LOCAL oA := HBNum():FromString("123456")   LOCAL oB := HBNum():FromString("789")   RETURN ;      oA:Add(oB):ToString() == ;      oB:Add(oA):ToString()```---### 15.6 C-Level Testing (RECOMMENDED)
-Expose debug/test functions in C:```cHB_FUNC( HB_NUM_TEST_ADD )```Purpose:- Validate internal logic directly
+      oR:hbNum["nSign"] == 1
+```
+### 15.5 Property-Based Tests
+```harbour
+FUNCTION Test_Add_Commutative()
+   LOCAL oA := HBNum():FromString("123456")
+   LOCAL oB := HBNum():FromString("789")
+RETURN ;
+   oA:Add(oB):ToString()==;
+   oB:Add(oA):ToString()
+```
+
+### 15.6 C-Level Testing (RECOMMENDED)
+Expose debug/test functions in C:
+```c 
+HB_FUNC( HB_NUM_TEST_ADD )
+```
+
+Purpose:- Validate internal logic directly
 - Avoid Harbour masking errors
 - Inspect limb-level correctness
 
@@ -521,7 +544,8 @@ Current implementation snapshot (updated: 2026-04-18):
 - [ ] Full comparative matrix pending against broader `tBigNumber` vectors (HBNum-only shared subset expanded)
 - [ ] Cross-tool memory analysis beyond Application Verifier still pending if extra tooling becomes available
 - [ ] Runtime warning cleanup (`LNK4098`) pending
----## 19. FINAL VISION
+
+## 19. FINAL VISION
 
 HBNum should behave as a native Harbour numeric type.
 
