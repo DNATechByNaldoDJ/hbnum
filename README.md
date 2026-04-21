@@ -1,4 +1,15 @@
-# HBNumHBNum is an arbitrary precision numeric library designed for the Harbour ecosystem.> ⚠️ This document is the SINGLE SOURCE OF TRUTH.> Any implementation MUST strictly follow these rules.---## 1. SYSTEM OVERVIEWHBNum is:> A **C-based numeric engine with a Harbour interface**Execution model:Harbour → orchestrationC       → computation### HARD RULEIF heavy math is implemented in Harbour → WRONG---## 2. DESIGN PRINCIPLES- Harbour-first API (interface only)- ALL heavy computation MUST be in C- Arbitrary precision (memory-bound)- No hard-coded precision caps inside HBNum- Precision/approximation policy belongs to HBNumContext- Immutable-style operations- Deterministic arithmetic (no floating point)- Extensible architecture---## 3. DATA STRUCTURE (MANDATORY)Every number MUST follow EXACTLY this structure:```harbour
+# HBNumHBNum is an arbitrary precision numeric library designed for the Harbour ecosystem.
+> ⚠️ This document is the SINGLE SOURCE OF TRUTH.
+> > Any implementation MUST strictly follow these rules.
+
+> > ## 1. SYSTEM OVERVIEWHBNum is:
+> > > A **C-based numeric engine with a Harbour interface**Execution model:Harbour → orchestrationC       → computation
+> > ### HARD RULEIF heavy math is implemented in Harbour → WRONG
+
+> > ## 2. DESIGN PRINCIPLES- Harbour-first API (interface only)- ALL heavy computation MUST be in C- Arbitrary precision (memory-bound)- No hard-coded precision caps inside HBNum- Precision/approximation policy belongs to HBNumContext- Immutable-style operations- Deterministic arithmetic (no floating point)- Extensible architecture
+
+> > ## 3. DATA STRUCTURE (MANDATORY)Every number MUST follow EXACTLY this structure:
+```harbour
 {
    "nSign"  => -1 | 0 | 1,
    "nScale" => >= 0,
@@ -6,7 +17,36 @@
    "aLimbs" => array of integers
 }
 ```
----## 3.1 Field Rules| Field  | Rule                                  || ------ | ------------------------------------- || nSign  | -1 (negative), 0 (zero), 1 (positive) || nScale | decimal precision                     || nUsed  | number of used limbs                  || aLimbs | little-endian                         |---## 3.2 Limb RulesBase MUST be:```c#define HBNUM_BASE ((HB_U32)1073741824UL) // 2^30```Each limb MUST satisfy:```bash0 <= limb < HBNUM_BASE```---## 4. NUMERIC MODELRepresentation:```bashvalue = integer * 10^(-nScale)```Example:```bash"123.45" →aLimbs = [12345]nScale = 2```---## 5. CORE INVARIANTS (CRITICAL)These MUST ALWAYS hold:- nUsed == len(aLimbs)- No leading zero limbs (except zero)- Zero representation:```harbournSign = 0nUsed = 0aLimbs = {}```- No shared memory between objects- All operations return NEW structures---## 6. OPERATION CONTRACT (MANDATORY)Every operation MUST:1. Receive TWO hashes2. NEVER mutate inputs3. Return NEW hash4. Normalize result5. Enforce invariants---## 7. NORMALIZATION RULESNormalization MUST:- Remove leading zero limbs- Adjust nUsed- Fix sign for zero- Ensure invariant compliance---## 8. ARCHITECTURE
+## 3.1 
+
+|Field Rules| Field Rule                            |
+| --------- | ------------------------------------- |
+| nSign     | -1 (negative), 0 (zero), 1 (positive) |
+| nScale    | decimal precision                     |
+| nUsed     | number of used limbs                  |
+| aLimbs    | little-endian                         |
+
+## 3.2 Limb RulesBase MUST be:
+
+```c#define HBNUM_BASE ((HB_U32)1073741824UL) // 2^30```
+
+Each limb MUST satisfy:
+```bash0 <= limb < HBNUM_BASE```
+
+## 4. NUMERIC MODELRepresentation:
+```bashvalue = integer * 10^(-nScale)```
+Example:
+```bash"123.45" →aLimbs = [12345]nScale = 2```
+
+## 5. CORE INVARIANTS (CRITICAL)These MUST ALWAYS hold:- nUsed == len(aLimbs)- No leading zero limbs (except zero)- Zero representation:
+```harbournSign = 0nUsed = 0aLimbs = {}```
+- No shared memory between objects- All operations return NEW structures
+
+## 6. OPERATION CONTRACT (MANDATORY)Every operation MUST:1. Receive TWO hashes2. NEVER mutate inputs3. Return NEW hash4. Normalize result5. Enforce invariants
+
+## 7. NORMALIZATION RULESNormalization MUST:- Remove leading zero limbs- Adjust nUsed- Fix sign for zero- Ensure invariant compliance
+
+## 8. ARCHITECTURE
 
 ```bash
 Harbour Layer (API)
@@ -29,7 +69,22 @@ C
   - hbnum_core_math.c (mod + integer power extension)
   - hbnum_core_number_theory.c (gcd + lcm extension)
 ```
----### 8.1 Harbour Responsibilities- Input normalization- Object lifecycle- Delegation to C- Result wrapping---### 8.2 C Responsibilities- Arithmetic operations- Carry / borrow logic- Limb manipulation- Normalization- Performance-critical logic---## 9. C IMPLEMENTATION RULES (STRICT)### MUST- Use HB_FUNC- Use PHB_ITEM- Use hb_array*, hb_hash*- Use hb_item*- Use hb_ret*- Use hb_xgrab / hb_xfree- Prefer stack allocation when possible---### MUST NOT- malloc inside loops- realloc inside loops- floating point usage- pointer sharing between objects- Harbour-based arithmetic loops---## 10. HARBOUR API (REFERENCE)```harbourCLASS HBNum   DATA hbNum   DATA oContext   METHOD New(xValue)   METHOD FromString(cValue)   METHOD FromInt(nValue)   METHOD Clone()   METHOD Add(xValue)
+
+### 8.1 Harbour Responsibilities- Input normalization- Object lifecycle- Delegation to C- Result wrapping
+### 8.2 C Responsibilities- Arithmetic operations- Carry / borrow logic- Limb manipulation- Normalization- Performance-critical logic
+## 9. C IMPLEMENTATION RULES (STRICT)
+### MUST- Use HB_FUNC- Use PHB_ITEM- Use hb_array*, hb_hash*- Use hb_item*- Use hb_ret*- Use hb_xgrab / hb_xfree- Prefer stack allocation when possible
+### MUST NOT- malloc inside loops- realloc inside loops- floating point usage- pointer sharing between objects- Harbour-based arithmetic loops
+## 10. HARBOUR API (REFERENCE)
+```harbour
+CLASS HBNum
+   DATA hbNum
+   DATA oContext
+   METHOD New(xValue)
+   METHOD FromString(cValue)
+   METHOD FromInt(nValue)
+   METHOD Clone()
+   METHOD Add(xValue)
    METHOD Sub(xValue)
    METHOD Mul(xValue)
    METHOD Div(xValue, nPrecision)
@@ -70,7 +125,9 @@ CLASS HBNumContext
    DATA nPrecision
    DATA nRootPrecision
    DATA nLogPrecision
-ENDCLASS```---## 11. IMPLEMENTATION CHECKLIST (FOR AI)
+ENDCLASS
+```
+## 11. IMPLEMENTATION CHECKLIST (FOR AI)
 
 Live status (must be updated on each implementation iteration):
 
@@ -119,13 +176,24 @@ Notes:
 - `hbnum_robust.exe` supports env-driven loop profiles via `HBNUM_ROBUST_*`.
 - Application Verifier export can legitimately return "no valid log file" when no verifier events are recorded for the run.
 - Cross-tool memory analysis beyond Application Verifier remains optional future hardening when additional tooling is available.
----## 12. PERFORMANCE RULES- Prefer stack over heap- Minimize allocations- Avoid copying arrays- Avoid dynamic resizing in loops- Optimize memory locality---## 13. FORBIDDEN PRACTICES- Floating point operations- Harbour loops for arithmetic- String-based math- Shared limb arrays- Premature optimization---## 14. DEVELOPMENT ORDERImplement in this sequence:1. Normalize2. Compare3. Add / Sub4. Mul5. Div---## 15. TEST CONTRACT (MANDATORY)> Every implementation MUST include test cases.---### 15.1 Test RequirementsEach operation MUST include:- Simple case- Carry / borrow case- Different sizes- Negative values- Zero handling- Extreme values---### 15.2 Test Format```harbourFUNCTION Test_Add_Simple()   LOCAL oA := HBNum():FromString("2")   LOCAL oB := HBNum():FromString("3")   LOCAL oR := oA:Add(oB)   RETURN oR:ToString() == "5"```---### 15.3 Mandatory ADD Tests
+
+## 12. PERFORMANCE RULES- Prefer stack over heap- Minimize allocations- Avoid copying arrays- Avoid dynamic resizing in loops- Optimize memory locality
+
+## 13. FORBIDDEN PRACTICES- Floating point operations- Harbour loops for arithmetic- String-based math- Shared limb arrays- Premature optimization
+
+## 14. DEVELOPMENT ORDERImplement in this sequence:1. Normalize2. Compare3. Add / Sub4. Mul5. Div
+
+## 15. TEST CONTRACT (MANDATORY)> Every implementation MUST include test cases.
+### 15.1 Test RequirementsEach operation MUST include:- Simple case- Carry / borrow case- Different sizes- Negative values- Zero handling- Extreme values
+### 15.2 Test Format
+```harbourFUNCTION Test_Add_Simple()   LOCAL oA := HBNum():FromString("2")   LOCAL oB := HBNum():FromString("3")   LOCAL oR := oA:Add(oB)   RETURN oR:ToString() == "5"```
+
+### 15.3 Mandatory ADD Tests
 ```harbour
 // carry
 "999999999" + "1" = "1000000000"
 // different size"123" + "999999999" = "1000000122"// negative"-10" + "5" = "-5"// zero"0" + "123" = "123"
 ```
-
 ---
 
 ### 15.3.1 Mandatory SUB Tests
