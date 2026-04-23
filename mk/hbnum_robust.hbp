@@ -18,8 +18,8 @@ hbfoxpro.hbc
 
 -i../include
 
-{win}-ldflag=/NODEFAULTLIB:msvcrt
-{win}-ldflag+=/NODEFAULTLIB:libucrt
+{allmsvc}-ldflag=/NODEFAULTLIB:msvcrt
+{allmsvc}-ldflag+=/NODEFAULTLIB:libucrt
 
 hbnum_robust.hbm
 hbnum_robust.hbc

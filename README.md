@@ -338,11 +338,15 @@ Build from `mk/`:
 
 ```bat
 cd mk
+go64_all.bat
 go64_lib.bat
 go64_test.bat
 go64_bench.bat
 go64_robust.bat
 ```
+
+`go64_all.bat` runs every other `.bat` file in `mk/` in name order, skips
+itself, and stops on the first failing script.
 
 Build the comparative tBigNumber benchmark:
 
@@ -350,6 +354,34 @@ Build the comparative tBigNumber benchmark:
 cd mk
 go64_bench_tbig.bat
 ```
+
+Experimental Zig library build:
+
+```bat
+cd mk
+set HBNUM_ZIG_ENABLE=1
+go64_zig_lib.bat
+```
+
+The Zig path is intentionally opt-in. `go64_zig_lib.bat` uses `zig.exe` from
+`PATH` and a Harbour checkout whose `utils/hbmk2/hbmk2.prg` supports
+`-comp=zig`. By default it expects that checkout at:
+
+```txt
+C:\GitHub\naldodj-harbour-core
+```
+
+Override it with:
+
+```bat
+set HB_ZIG_ROOT=C:\path\to\harbour-core
+set HB_ZIG_TARGET=x86_64-windows-gnu
+```
+
+This currently targets the HBNum static library only. Executable test and
+benchmark builds with Zig need a complete Harbour runtime/library set built for
+the same Zig target, and the tBigNumber comparative build would also need
+tBigNumber rebuilt with a compatible ABI.
 
 Expected outputs:
 

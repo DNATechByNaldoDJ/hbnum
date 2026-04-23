@@ -98,11 +98,6 @@ static HB_BOOL hbnum_native_is_one_value( const HBNumNative * pNum )
    return nCmp == 0;
 }
 
-static HB_BOOL hbnum_native_is_zero_value( const HBNumNative * pNum )
-{
-   return pNum->used == 0;
-}
-
 static HB_BOOL hbnum_native_to_small_int( const HBNumNative * pNum, HB_MAXINT * pnValue )
 {
    char * szText;
@@ -276,17 +271,6 @@ static HB_BOOL hbnum_native_set_power_of_ten( HB_SIZE nExp, HBNumNative * pNum )
    hbnum_native_set_small( 10, &nTen );
    hbnum_native_pow_int_nonneg( &nTen, nExp, pNum );
    hbnum_native_release( &nTen );
-   return HB_TRUE;
-}
-
-static HB_BOOL hbnum_native_mul_small( const HBNumNative * pA, HB_SIZE nFactor, HBNumNative * pResult )
-{
-   HBNumNative nB;
-
-   hbnum_native_init( &nB );
-   hbnum_native_set_small( ( HB_MAXINT ) nFactor, &nB );
-   hbnum_native_mul( pA, &nB, pResult );
-   hbnum_native_release( &nB );
    return HB_TRUE;
 }
 

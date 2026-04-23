@@ -19,6 +19,8 @@ mk/msvc64/log/*.log
 mk/msvc64/log/*.csv
 mk/msvc64/.hbmk/
 mk/msvc64/.hbmk/**
+mk/zig/
+mk/zig/**
 msvc64/*.log
 tests/*.log
 *tests*.log

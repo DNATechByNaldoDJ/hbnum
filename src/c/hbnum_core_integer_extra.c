@@ -68,14 +68,6 @@ static void hbnum_native_set_one( HBNumNative * pNum )
    hbnum_native_set_small( 1, pNum );
 }
 
-static void hbnum_native_abs_clone( const HBNumNative * pSrc, HBNumNative * pDst )
-{
-   hbnum_native_clone( pSrc, pDst );
-
-   if( pDst->used > 0 )
-      pDst->sign = 1;
-}
-
 static void hbnum_native_replace( HBNumNative * pDst, HBNumNative * pSrc )
 {
    hbnum_native_release( pDst );
@@ -187,63 +179,9 @@ static HB_BOOL hbnum_native_increment_one( HBNumNative * pNum )
    return HB_TRUE;
 }
 
-static HB_BOOL hbnum_native_decrement_one( HBNumNative * pNum )
-{
-   HBNumNative nOne;
-   HBNumNative nTmp;
-
-   hbnum_native_init( &nOne );
-   hbnum_native_init( &nTmp );
-   hbnum_native_set_one( &nOne );
-   hbnum_native_sub( pNum, &nOne, &nTmp );
-   hbnum_native_replace( pNum, &nTmp );
-   hbnum_native_release( &nOne );
-   hbnum_native_release( &nTmp );
-   return HB_TRUE;
-}
-
 static HB_BOOL hbnum_native_mod_int( const HBNumNative * pA, const HBNumNative * pB, HBNumNative * pResult )
 {
    return hbnum_native_mod( pA, pB, pResult );
-}
-
-static HB_BOOL hbnum_native_pow_int_nonneg( const HBNumNative * pBase, HB_SIZE nExp, HBNumNative * pResult )
-{
-   HBNumNative nAcc;
-   HBNumNative nPow;
-   HBNumNative nTmp;
-
-   hbnum_native_init( pResult );
-   hbnum_native_init( &nAcc );
-   hbnum_native_init( &nPow );
-   hbnum_native_init( &nTmp );
-
-   hbnum_native_set_one( &nAcc );
-   hbnum_native_clone( pBase, &nPow );
-
-   while( nExp > 0 )
-   {
-      if( ( nExp & 1 ) != 0 )
-      {
-         hbnum_native_mul( &nAcc, &nPow, &nTmp );
-         hbnum_native_replace( &nAcc, &nTmp );
-      }
-
-      nExp >>= 1;
-
-      if( nExp > 0 )
-      {
-         hbnum_native_mul( &nPow, &nPow, &nTmp );
-         hbnum_native_replace( &nPow, &nTmp );
-      }
-   }
-
-   hbnum_native_clone( &nAcc, pResult );
-
-   hbnum_native_release( &nAcc );
-   hbnum_native_release( &nPow );
-   hbnum_native_release( &nTmp );
-   return HB_TRUE;
 }
 
 static HB_BOOL hbnum_native_set_integer_text( const char * szText, HBNumNative * pNum )
