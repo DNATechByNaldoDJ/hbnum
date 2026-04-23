@@ -5,6 +5,9 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Rewrite README and add core format C file)"
 */
 
+2026-04-23 09:17 UTC naldodj (Rewrite README and add core format C file)
+  + src/c/hbnum_core_format.c
+
 2026-04-23 09:15 UTC naldodj (Rewrite README and add core format C file)
   Rewrite README and add core format C file
   Replace the long, prescriptive README with a reorganized project contract: clearer goals, non-negotiable rules, numeric model, core invariants, architecture, public API, testing and build guidance, formatting/conversion rules, and planned test profiles.
