@@ -30,6 +30,7 @@ hbnum_robust.hbc
 ../src/hb/hbnum_math_ops.prg
 ../src/hb/hbnum_integer_ops.prg
 ../src/c/hbnum_core.c
+../src/c/hbnum_core_format.c
 ../src/c/hbnum_core_math.c
 ../src/c/hbnum_core_number_theory.c
 ../src/c/hbnum_core_integer_extra.c

@@ -464,6 +464,11 @@ FUNCTION Main()
    lOk := __RunTest( "Test_Compare_ScaledOrdering", Test_Compare_ScaledOrdering() ) .AND. lOk
    lOk := __RunTest( "Test_Compare_ZeroScaled", Test_Compare_ZeroScaled() ) .AND. lOk
    lOk := __RunTest( "Test_Min_Max", Test_Min_Max() ) .AND. lOk
+   lOk := __RunTest( "Test_Format_Scientific_Exact", Test_Format_Scientific_Exact() ) .AND. lOk
+   lOk := __RunTest( "Test_Format_Scientific_SignificantDigits", Test_Format_Scientific_SignificantDigits() ) .AND. lOk
+   lOk := __RunTest( "Test_Format_Engineering_Exact", Test_Format_Engineering_Exact() ) .AND. lOk
+   lOk := __RunTest( "Test_Format_Engineering_SignificantDigits", Test_Format_Engineering_SignificantDigits() ) .AND. lOk
+   lOk := __RunTest( "Test_Format_NoMutation", Test_Format_NoMutation() ) .AND. lOk
    lOk := __RunTest( "Test_Mod_Simple", Test_Mod_Simple() ) .AND. lOk
    lOk := __RunTest( "Test_Mod_NegativeDividend", Test_Mod_NegativeDividend() ) .AND. lOk
    lOk := __RunTest( "Test_Mod_NegativeDivisor", Test_Mod_NegativeDivisor() ) .AND. lOk
@@ -1320,6 +1325,82 @@ FUNCTION Test_Min_Max()
    LOCAL cActual := "min=" + oMin:ToString() + ", max=" + oMax:ToString()
 
    __SetTrace( "Min/Max entre 12.5 e 12.49", "min=12.49, max=12.5", cActual )
+RETURN lResult
+
+
+FUNCTION Test_Format_Scientific_Exact()
+   LOCAL aActual := {}
+   LOCAL cExpected := "1.2345E+4,1.23E-3,-9.8765E+2,1E+3,8.4E+0,0E+0"
+   LOCAL cActual
+
+   AAdd( aActual, HBNum():New( "12345" ):ToScientific() )
+   AAdd( aActual, HBNum():New( "0.00123" ):ToScientific() )
+   AAdd( aActual, HBNum():New( "-987.65" ):ToScientific() )
+   AAdd( aActual, HBNum():New( "1000" ):ToScientific() )
+   AAdd( aActual, HBNum():New( "8.40" ):ToScientific() )
+   AAdd( aActual, HBNum():New( "0" ):ToScientific() )
+
+   cActual := __JoinTextArray( aActual )
+   __SetTrace( "ToScientific() exact formatting", cExpected, cActual )
+RETURN cActual == cExpected
+
+
+FUNCTION Test_Format_Scientific_SignificantDigits()
+   LOCAL aActual := {}
+   LOCAL cExpected := "1.23E+4,1.0E+3,1.00E-2,0.00E+0"
+   LOCAL cActual
+
+   AAdd( aActual, HBNum():New( "12345" ):ToScientific( 3 ) )
+   AAdd( aActual, HBNum():New( "999" ):ToScientific( 2 ) )
+   AAdd( aActual, HBNum():New( "0.009995" ):ToScientific( 3 ) )
+   AAdd( aActual, HBNum():New( "0" ):ToScientific( 3 ) )
+
+   cActual := __JoinTextArray( aActual )
+   __SetTrace( "ToScientific(n) significant digits", cExpected, cActual )
+RETURN cActual == cExpected
+
+
+FUNCTION Test_Format_Engineering_Exact()
+   LOCAL aActual := {}
+   LOCAL cExpected := "12.345E+3,1.23E-3,120E-3,1.234567E+6,999E+0"
+   LOCAL cActual
+
+   AAdd( aActual, HBNum():New( "12345" ):ToEngineering() )
+   AAdd( aActual, HBNum():New( "0.00123" ):ToEngineering() )
+   AAdd( aActual, HBNum():New( "0.12" ):ToEngineering() )
+   AAdd( aActual, HBNum():New( "1234567" ):ToEngineering() )
+   AAdd( aActual, HBNum():New( "999" ):ToEngineering() )
+
+   cActual := __JoinTextArray( aActual )
+   __SetTrace( "ToEngineering() exact formatting", cExpected, cActual )
+RETURN cActual == cExpected
+
+
+FUNCTION Test_Format_Engineering_SignificantDigits()
+   LOCAL aActual := {}
+   LOCAL cExpected := "12.35E+3,1.0E+3,10.0E-3,0.0E+0"
+   LOCAL cActual
+
+   AAdd( aActual, HBNum():New( "12345" ):ToEngineering( 4 ) )
+   AAdd( aActual, HBNum():New( "999" ):ToEngineering( 2 ) )
+   AAdd( aActual, HBNum():New( "0.009995" ):ToEngineering( 3 ) )
+   AAdd( aActual, HBNum():New( "0" ):ToEngineering( 2 ) )
+
+   cActual := __JoinTextArray( aActual )
+   __SetTrace( "ToEngineering(n) significant digits", cExpected, cActual )
+RETURN cActual == cExpected
+
+
+FUNCTION Test_Format_NoMutation()
+   LOCAL oValue := HBNum():New( "12345.600" )
+   LOCAL cBefore := oValue:ToString()
+   LOCAL cScientific := oValue:ToScientific( 4 )
+   LOCAL cEngineering := oValue:ToEngineering( 4 )
+   LOCAL cAfter := oValue:ToString()
+   LOCAL lResult := cBefore == cAfter .AND. cScientific == "1.235E+4" .AND. cEngineering == "12.35E+3"
+   LOCAL cActual := "before=" + cBefore + ", after=" + cAfter + ", scientific=" + cScientific + ", engineering=" + cEngineering
+
+   __SetTrace( "formatting does not mutate source number", "before=after, scientific=1.235E+4, engineering=12.35E+3", cActual )
 RETURN lResult
 
 

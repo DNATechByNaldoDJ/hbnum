@@ -2,8 +2,27 @@
      * Change  ! Fix  % Optimize  + Add  - Remove  ; Comment
    Entries may not always be in chronological/commit order.
    See license at the end of file.
-   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add native mod, spinner UI, and MSVC tBig pin)"
+   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Rewrite README and add core format C file)"
 */
+
+2026-04-23 09:15 UTC naldodj (Rewrite README and add core format C file)
+  Rewrite README and add core format C file
+  Replace the long, prescriptive README with a reorganized project contract: clearer goals, non-negotiable rules, numeric model, core invariants, architecture, public API, testing and build guidance, formatting/conversion rules, and planned test profiles.
+  Add a new C formatting layer src/c/hbnum_core_format.c to implement formatting/ToString/ToScientific/ToEngineering helpers.
+  Update include/hbnum.h (limb macros HBNUM_LIMB_BITS/HBNUM_BASE/HBNUM_MASK) and adjust Harbour sources, build files (mk/*.hbp), and test files to align with the new docs and formatting layer.
+  Minor build artifacts in mk/msvc64 were updated as part of the build/test changes.
+    * include/hbnum.h
+    * mk/hbnum_bench_tbig.hbp
+    * mk/hbnum_bench.hbp
+    * mk/hbnum_robust.hbp
+    * mk/hbnum_test.hbp
+    * mk/hbnum.hbp
+    * mk/msvc64/hbnum_test.exe
+    * mk/msvc64/hbnum.lib
+    * README.md
+    * src/hb/hbnum.prg
+    * tests/test.hbp
+    * tests/test.prg
 
 2026-04-21 15:05 UTC naldodj (Add native mod, spinner UI, and MSVC tBig pin)
   Implement a unified divmod routine and expose hbnum_native_mod (with header entry) to compute remainders directly;

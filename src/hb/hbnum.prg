@@ -60,6 +60,8 @@ CLASS HBNum
 
    METHOD Normalize()
    METHOD ToString()
+   METHOD ToScientific( nSignificantDigits )
+   METHOD ToEngineering( nSignificantDigits )
    METHOD SetContext( oContext )
    METHOD GetContext()
    METHOD SetPrecision( nPrecision )
@@ -158,6 +160,14 @@ RETURN ::FromString( hb_ntos( nValue ) )
 
 METHOD ToString() CLASS HBNum
 RETURN HBNUM_CORE_TOSTRING( ::hbNum )
+
+
+METHOD ToScientific( nSignificantDigits ) CLASS HBNum
+RETURN HBNUM_CORE_TOSCIENTIFIC( ::hbNum, nSignificantDigits )
+
+
+METHOD ToEngineering( nSignificantDigits ) CLASS HBNum
+RETURN HBNUM_CORE_TOENGINEERING( ::hbNum, nSignificantDigits )
 
 
 METHOD SetContext( oContext ) CLASS HBNum
