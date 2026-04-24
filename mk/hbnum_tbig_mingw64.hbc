@@ -1,0 +1,9 @@
+# hbnum: Released to Public Domain.
+# Local package that pins comparative builds to the MinGW64/Zig-compatible
+# tBigNumber library instead of the MSVC-specific package alias.
+incpaths=C:/GitHub/tBigNumber/include/
+libpaths=C:/GitHub/tBigNumber/lib/win/mingw64
+libs=_tbigNumber
+{zig}libs=c++
+{zig}libs=c++abi
+{zig}libs=unwind

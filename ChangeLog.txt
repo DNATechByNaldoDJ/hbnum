@@ -2,30 +2,74 @@
      * Change  ! Fix  % Optimize  + Add  - Remove  ; Comment
    Entries may not always be in chronological/commit order.
    See license at the end of file.
-   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add robust build scripts and Zig library)"
+   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add Zig build wrappers and tBigNumber support)"
 */
+
+2026-04-24 17:39 UTC naldodj (Add Zig build wrappers and tBigNumber support)
+  Introduce experimental Zig build support and helper scripts: add go64_zig_*.bat wrappers, a shared tools/go64_zig_build.bat builder, and tools/go64_zig_tbig_lib.bat to rebuild the external tBigNumber library with Zig.
+  Update go64_all.bat to optionally run Zig wrappers when HBNUM_ZIG_ENABLE is set.
+  Add a MinGW64/Zig pin (mk/hbnum_tbig_mingw64.hbc), a tBigNumber smoke test (mk/tbig_smoke.hbp and tools/tbig_smoke.prg), and mk/zig outputs.
+  Trim unused optional {win} .hbc contrib dependencies from mk/*.hbp and switch {win}-lucrt to {allmsvc}-lucrt, and adjust the comparative benchmark to support both MSVC and MinGW64/Zig links.
+  Update README and ChangeLog to document usage, defaults, and required HB_ZIG_*/TBIG_ZIG_* variables.
+  Prebuilt mk/msvc64 binaries/libs were also updated.
+    + mk/hbnum_tbig_mingw64.hbc
+    + mk/msvc64/tbig_smoke.exe
+    + mk/tbig_smoke.hbp
+    + mk/go64_zig_bench_tbig.bat
+    + mk/go64_zig_bench.bat
+    + mk/go64_zig_robust.bat
+    + mk/go64_zig_test.bat
+    + mk/tools/go64_zig_build.bat
+    + mk/tools/go64_zig_tbig_lib.bat
+    + mk/tools/tbig_smoke.prg
+    * mk/msvc64/hbnum_bench_tbig.exe
+    * mk/msvc64/hbnum_bench.exe
+    * mk/msvc64/hbnum_robust.exe
+    * mk/msvc64/hbnum_test.exe
+    * mk/msvc64/hbnum.lib
+    * ChangeLog.txt
+    * mk/go64_all.bat
+    * mk/go64_zig_lib.bat
+    * mk/hbnum_bench_tbig.hbp
+    * mk/hbnum_bench.hbp
+    * mk/hbnum_robust.hbp
+    * mk/hbnum_test.hbp
+    * mk/hbnum.hbp
+    * README.md
 
 2026-04-23 18:44 UTC naldodj (Add robust build scripts and Zig library)
   Add robust build scripts and Zig library
   Make Windows build scripts more robust: enable extensions, add explicit error handling and safe deletion checks, and add go64_all.bat to run all mk/*.bat scripts.
-  Add an experimental opt-in Zig library build (go64_zig_lib.bat) with HB_ZIG_ROOT/HB_ZIG_TARGET guidance.
+  Add experimental opt-in Zig wrappers for the library and native executables (go64_zig_lib.bat, go64_zig_test.bat, go64_zig_robust.bat, go64_zig_bench.bat, go64_zig_bench_tbig.bat) with HB_ZIG_ROOT/HB_ZIG_TARGET guidance.
+  Let the direct go64_zig_*.bat wrappers default HBNUM_ZIG_ENABLE=1 internally, and let go64_zig_bench_tbig.bat also default HBNUM_ZIG_TBIG_ENABLE=1 while go64_all.bat still skips Zig wrappers unless HBNUM_ZIG_ENABLE=1 is exported before running it.
+  Point the Zig wrappers to the Harbour mingw64 library directory via HB_ZIG_LIBDIR/HB_INSTALL_LIB and trim unused mk/*.hbp contrib dependencies so Zig executable links do not require optional Harbour extras.
+  Add a MinGW64/Zig tBigNumber pin (mk/hbnum_tbig_mingw64.hbc) so the comparative benchmark target can link against the external mingw64 library tree.
+  Add a Zig helper for rebuilding the external tBigNumber static library into lib/win/mingw64 and let go64_zig_bench_tbig.bat call it when HBNUM_ZIG_TBIG_ENABLE=1.
+  Move the memcmp normalization fix into tBigNumber's own tbignumber.c so the Zig helper no longer needs a local compatibility source.
   Update README with usage and Zig notes, and add mk/zig to .gitignore.
   Switch hbnum.*.hbp linker flags from {win} to {allmsvc} for NODEFAULTLIB.
   Remove several unused/internal helper functions from src/c to simplify the codebase.
   Prebuilt msvc64 library and executables under mk/msvc64 were also updated.
     * .gitignore
     + mk/go64_all.bat
+    + mk/go64_zig_bench.bat
+    + mk/go64_zig_bench_tbig.bat
     + mk/go64_zig_lib.bat
+    + mk/go64_zig_robust.bat
+    + mk/go64_zig_test.bat
     * mk/go64_bench_tbig.bat
     * mk/go64_bench.bat
     * mk/go64_lib.bat
     * mk/go64_robust.bat
     * mk/go64_test.bat
+    + mk/tools/go64_zig_build.bat
+    + mk/tools/go64_zig_tbig_lib.bat
     * mk/hbnum_bench_tbig.hbp
     * mk/hbnum_bench.hbp
     * mk/hbnum_robust.hbp
     * mk/hbnum_test.hbp
     * mk/hbnum.hbp
+    + mk/hbnum_tbig_mingw64.hbc
     * mk/msvc64/hbnum_bench_tbig.exe
     * mk/msvc64/hbnum_bench.exe
     * mk/msvc64/hbnum_robust.exe

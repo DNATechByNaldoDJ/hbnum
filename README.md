@@ -346,7 +346,8 @@ go64_robust.bat
 ```
 
 `go64_all.bat` runs every other `.bat` file in `mk/` in name order, skips
-itself, and stops on the first failing script.
+itself, and stops on the first failing script. If `HBNUM_ZIG_ENABLE=1` is set
+before launching it, that also includes the opt-in `go64_zig_*.bat` wrappers.
 
 Build the comparative tBigNumber benchmark:
 
@@ -355,17 +356,39 @@ cd mk
 go64_bench_tbig.bat
 ```
 
-Experimental Zig library build:
+Experimental Zig builds:
 
 ```bat
 cd mk
-set HBNUM_ZIG_ENABLE=1
 go64_zig_lib.bat
+go64_zig_test.bat
+go64_zig_robust.bat
+go64_zig_bench.bat
+go64_zig_bench_tbig.bat
 ```
 
-The Zig path is intentionally opt-in. `go64_zig_lib.bat` uses `zig.exe` from
-`PATH` and a Harbour checkout whose `utils/hbmk2/hbmk2.prg` supports
-`-comp=zig`. By default it expects that checkout at:
+To rebuild the external `tBigNumber` library with Zig before the comparative
+benchmark target, either run the helper directly:
+
+```bat
+cd mk
+call tools\go64_zig_tbig_lib.bat
+```
+
+or let the wrapper rebuild it first:
+
+```bat
+cd mk
+go64_zig_bench_tbig.bat
+```
+
+The Zig path is intentionally opt-in for `go64_all.bat`. The direct
+`go64_zig_*.bat` wrappers set `HBNUM_ZIG_ENABLE=1` internally when that
+variable is not already defined, and `go64_zig_bench_tbig.bat` also defaults
+`HBNUM_ZIG_TBIG_ENABLE=1` so it refreshes the external `tBigNumber` library
+before linking unless you override it. They use `zig.exe` from `PATH` and a
+Harbour checkout whose `utils/hbmk2/hbmk2.prg` supports `-comp=zig`. By
+default they expect that checkout at:
 
 ```txt
 C:\GitHub\naldodj-harbour-core
@@ -376,16 +399,24 @@ Override it with:
 ```bat
 set HB_ZIG_ROOT=C:\path\to\harbour-core
 set HB_ZIG_TARGET=x86_64-windows-gnu
+set HB_ZIG_LIBDIR=C:\path\to\harbour-core\lib\win\mingw64
+set TBIG_ZIG_ROOT=C:\path\to\tBigNumber
+set TBIG_ZIG_OUTDIR=C:\path\to\tBigNumber\lib\win\mingw64
 ```
 
-This currently targets the HBNum static library only. Executable test and
-benchmark builds with Zig need a complete Harbour runtime/library set built for
-the same Zig target, and the tBigNumber comparative build would also need
-tBigNumber rebuilt with a compatible ABI.
+The current Zig wrappers support the HBNum static library plus the native
+`hbnum_test`, `hbnum_robust`, `hbnum_bench`, and `hbnum_bench_tbig`
+executables. The comparative `hbnum_bench_tbig` target needs an external
+tBigNumber library refreshed into `lib/win/mingw64`.
 
 Expected outputs:
 
 ```txt
+mk/zig/libhbnum.a
+mk/zig/hbnum_test.exe
+mk/zig/hbnum_robust.exe
+mk/zig/hbnum_bench.exe
+mk/zig/hbnum_bench_tbig.exe
 mk/msvc64/hbnum.lib
 mk/msvc64/hbnum_test.exe
 mk/msvc64/hbnum_bench.exe
@@ -531,16 +562,19 @@ environment-variable interface above.
 
 ## tBigNumber Comparative Mode
 
-Comparative mode requires an external `tBigNumber` checkout and MSVC library:
+Comparative mode requires an external `tBigNumber` checkout. HBNum supports
+both of these local pin files:
 
 ```txt
 C:/GitHub/tBigNumber/include/
+C:/GitHub/tBigNumber/lib/win/mingw64/lib_tbigNumber.a
 C:/GitHub/tBigNumber/lib/win/msvc64/_tbigNumber_msvc.lib
 ```
 
 HBNum links it through:
 
 ```txt
+mk/hbnum_tbig_mingw64.hbc
 mk/hbnum_tbig_msvc.hbc
 ```
 
@@ -549,6 +583,10 @@ Important notes:
 - `mk/hbnum_bench_tbig.hbp` uses `-mt` because `tBigNumber` requests `HB_MT`.
 - `tests/tbig_link_stubs.prg` was removed; comparative mode should link the real MT runtime.
 - `C:/GitHub/tBigNumber/hbp/tbigntst_msvc.hbp` is the external standalone test app build.
+- `go64_zig_bench_tbig.bat` expects the MinGW64-style `tBigNumber` library tree.
+- `mk/tools/go64_zig_tbig_lib.bat` rebuilds `C:/GitHub/tBigNumber/lib/win/mingw64/lib_tbigNumber.a` using Zig instead of MinGW.
+- The helper forces `-x c++` for Zig because `tBigNumber` embeds C++ `BEGINDUMP` code in a generated `.c` unit.
+- `C:/GitHub/tBigNumber/src/hb/c/tbignumber.c` should carry the normalized `memcmp()` fix upstream so the Zig helper no longer needs a local compatibility source.
 - `C:/GitHub/tBigNumber/mk/hbmk.hbm` affects the external tBigNumber build when that library is rebuilt; it is not auto-loaded by HBNum's `hbmk2` invocation.
 
 ## Validation Notes

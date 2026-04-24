@@ -6,17 +6,8 @@
 {win}-lole32
 {win}-lOleDlg
 -lversion
-{win}-lucrt
+{allmsvc}-lucrt
 -luxtheme
-
-xhb.hbc
-hbct.hbc
-hbtip.hbc
-hbcurl.hbc
-{win}hbwin.hbc
-hbmzip.hbc
-hbziparc.hbc
-hbfoxpro.hbc
 
 -i../include
 

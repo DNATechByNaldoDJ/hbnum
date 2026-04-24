@@ -4,17 +4,8 @@
 {win}-lole32
 {win}-lOleDlg
 -lversion
-{win}-lucrt
+{allmsvc}-lucrt
 -luxtheme
-
-xhb.hbc
-hbct.hbc
-hbtip.hbc
-hbcurl.hbc
-{win}hbwin.hbc
-hbmzip.hbc
-hbziparc.hbc
-hbfoxpro.hbc
 
 # Console progress spinner uses a helper thread during long-running cases.
 -mt
