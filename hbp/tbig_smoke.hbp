@@ -1,0 +1,25 @@
+# hbnum: Released to Public Domain.
+
+-lgdiplus
+{win}-lole32
+{win}-lOleDlg
+-lversion
+{allmsvc}-lucrt
+-luxtheme
+
+-mt
+
+{allmsvc}-ldflag=/NODEFAULTLIB:msvcrt
+{allmsvc}-ldflag+=/NODEFAULTLIB:libucrt
+
+../hbm/hbnum_bench_tbig.hbm
+../hbc/hbnum_bench_tbig.hbc
+
+../tests/hbnum_test_paths.prg
+../tools/tbig_smoke.prg
+
+{allmsvc}../hbc/hbnum_tbig_msvc.hbc
+{allmingw}../hbc/hbnum_tbig_mingw64.hbc
+{zig}../hbc/hbnum_tbig_mingw64.hbc
+
+-o../exe/win/${hb_comp}/${hb_name}

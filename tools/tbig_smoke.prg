@@ -77,7 +77,7 @@ procedure Main()
    lOk := Expect( "exp-one", o:Exp():NoRnd( 12 ):ExactValue( .F., .F. ), "2.718281828459" ) .and. lOk
 
    AddLog( iif( lOk, "SMOKE PASS", "SMOKE FAIL" ) )
-   MemoWrit( "F:/GitHub/hbnum/mk/zig/tbig_smoke.log", s_cLog )
+   MemoWrit( HBNumTestArtifactPath( "tbig_smoke.log" ), s_cLog )
    ErrorLevel( iif( lOk, 0, 1 ) )
 
 return

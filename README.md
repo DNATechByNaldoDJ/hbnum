@@ -134,12 +134,34 @@ tests/
   hbnum_test_paths.prg
   test.hbp
 
-mk/
+hbp/
   hbnum*.hbp
-  hbnum*.hbm
+hbc/
   hbnum*.hbc
+hbm/
+  hbnum*.hbm
+
+mk/
   go64_*.bat
-  msvc64/
+  tools/
+
+tools/
+  tbig_smoke.prg
+
+lib/win/msvc64/
+  hbnum.lib
+
+exe/win/msvc64/
+  hbnum_test.exe
+  hbnum_bench.exe
+  hbnum_bench_tbig.exe
+  hbnum_robust.exe
+
+log/win/msvc64/
+  hbnum_tests.log
+  hbnum_bench_compare.log
+  hbnum_bench_compare.csv
+  hbnum_robust.log
 ```
 
 ## Public API
@@ -287,7 +309,7 @@ Integer and number-theory tools:
 Testing and validation:
 
 - [x] Unit test runner: `tests/test.prg`.
-- [x] Test log output: `mk/msvc64/log/hbnum_tests.log`.
+- [x] Test log output: `log/win/msvc64/hbnum_tests.log`.
 - [x] Spinner feedback for long-running tests and benchmarks.
 - [x] Mod fuzz tests in the normal test suite.
 - [x] Robustness/property runner: `tests/robustness.prg`.
@@ -412,16 +434,16 @@ tBigNumber library refreshed into `lib/win/mingw64`.
 Expected outputs:
 
 ```txt
-mk/zig/libhbnum.a
-mk/zig/hbnum_test.exe
-mk/zig/hbnum_robust.exe
-mk/zig/hbnum_bench.exe
-mk/zig/hbnum_bench_tbig.exe
-mk/msvc64/hbnum.lib
-mk/msvc64/hbnum_test.exe
-mk/msvc64/hbnum_bench.exe
-mk/msvc64/hbnum_bench_tbig.exe
-mk/msvc64/hbnum_robust.exe
+lib/win/zig/libhbnum.a
+exe/win/zig/hbnum_test.exe
+exe/win/zig/hbnum_robust.exe
+exe/win/zig/hbnum_bench.exe
+exe/win/zig/hbnum_bench_tbig.exe
+lib/win/msvc64/hbnum.lib
+exe/win/msvc64/hbnum_test.exe
+exe/win/msvc64/hbnum_bench.exe
+exe/win/msvc64/hbnum_bench_tbig.exe
+exe/win/msvc64/hbnum_robust.exe
 ```
 
 ## Test Execution
@@ -429,38 +451,34 @@ mk/msvc64/hbnum_robust.exe
 Run the normal test suite:
 
 ```bat
-cd mk
-msvc64\hbnum_test.exe
+exe\win\msvc64\hbnum_test.exe
 ```
 
 Run HBNum-only benchmark and accuracy checks:
 
 ```bat
-cd mk
-msvc64\hbnum_bench.exe
+exe\win\msvc64\hbnum_bench.exe
 ```
 
 Run comparative benchmark and accuracy checks:
 
 ```bat
-cd mk
-msvc64\hbnum_bench_tbig.exe
+exe\win\msvc64\hbnum_bench_tbig.exe
 ```
 
 Run robustness/property/stress tests:
 
 ```bat
-cd mk
-msvc64\hbnum_robust.exe
+exe\win\msvc64\hbnum_robust.exe
 ```
 
 Output logs:
 
 ```txt
-mk/msvc64/log/hbnum_tests.log
-mk/msvc64/log/hbnum_bench_compare.log
-mk/msvc64/log/hbnum_bench_compare.csv
-mk/msvc64/log/hbnum_robust.log
+log/win/msvc64/hbnum_tests.log
+log/win/msvc64/hbnum_bench_compare.log
+log/win/msvc64/hbnum_bench_compare.csv
+log/win/msvc64/hbnum_robust.log
 ```
 
 ## Runtime Test Knobs
@@ -477,9 +495,8 @@ Benchmark runner:
 Example:
 
 ```bat
-cd mk
 set HBNUM_BENCH_FILTER=PERF_MOD_512D
-msvc64\hbnum_bench.exe
+exe\win\msvc64\hbnum_bench.exe
 ```
 
 Robustness runner:
@@ -495,13 +512,12 @@ Robustness runner:
 Example:
 
 ```bat
-cd mk
 set HBNUM_ROBUST_SEED=20260421
 set HBNUM_ROBUST_INT_LOOPS=1000
 set HBNUM_ROBUST_DECIMAL_LOOPS=1000
 set HBNUM_ROBUST_LARGE_LOOPS=250
 set HBNUM_ROBUST_LIFECYCLE_LOOPS=5000
-msvc64\hbnum_robust.exe
+exe\win\msvc64\hbnum_robust.exe
 ```
 
 Any robustness loop count can be set to `0` to isolate another suite.
@@ -574,13 +590,13 @@ C:/GitHub/tBigNumber/lib/win/msvc64/_tbigNumber_msvc.lib
 HBNum links it through:
 
 ```txt
-mk/hbnum_tbig_mingw64.hbc
-mk/hbnum_tbig_msvc.hbc
+hbc/hbnum_tbig_mingw64.hbc
+hbc/hbnum_tbig_msvc.hbc
 ```
 
 Important notes:
 
-- `mk/hbnum_bench_tbig.hbp` uses `-mt` because `tBigNumber` requests `HB_MT`.
+- `hbp/hbnum_bench_tbig.hbp` uses `-mt` because `tBigNumber` requests `HB_MT`.
 - `tests/tbig_link_stubs.prg` was removed; comparative mode should link the real MT runtime.
 - `C:/GitHub/tBigNumber/hbp/tbigntst_msvc.hbp` is the external standalone test app build.
 - `go64_zig_bench_tbig.bat` expects the MinGW64-style `tBigNumber` library tree.

@@ -1,7 +1,5 @@
 # hbnum: Released to Public Domain.
-# HBNum library target (no main program).
 
--hblib
 -lgdiplus
 {win}-lole32
 {win}-lOleDlg
@@ -14,8 +12,8 @@
 {allmsvc}-ldflag=/NODEFAULTLIB:msvcrt
 {allmsvc}-ldflag+=/NODEFAULTLIB:libucrt
 
-hbnum.hbm
-hbnum.hbc
+../hbm/hbnum_robust.hbm
+../hbc/hbnum_robust.hbc
 
 ../src/hb/hbnum.prg
 ../src/hb/hbnum_context.prg
@@ -27,5 +25,7 @@ hbnum.hbc
 ../src/c/hbnum_core_math.c
 ../src/c/hbnum_core_number_theory.c
 ../src/c/hbnum_core_integer_extra.c
+../tests/hbnum_test_paths.prg
+../tests/robustness.prg
 
--o./${hb_comp}/hbnum
+-o../exe/win/${hb_comp}/${hb_name}

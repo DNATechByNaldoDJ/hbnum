@@ -1,5 +1,7 @@
 # hbnum: Released to Public Domain.
+# HBNum library target (no main program).
 
+-hblib
 -lgdiplus
 {win}-lole32
 {win}-lOleDlg
@@ -7,15 +9,13 @@
 {allmsvc}-lucrt
 -luxtheme
 
-# Console progress spinner uses a helper thread during long-running tests.
--mt
 -i../include
 
 {allmsvc}-ldflag=/NODEFAULTLIB:msvcrt
 {allmsvc}-ldflag+=/NODEFAULTLIB:libucrt
 
-hbnum_test.hbm
-hbnum_test.hbc
+../hbm/hbnum.hbm
+../hbc/hbnum.hbc
 
 ../src/hb/hbnum.prg
 ../src/hb/hbnum_context.prg
@@ -27,7 +27,5 @@ hbnum_test.hbc
 ../src/c/hbnum_core_math.c
 ../src/c/hbnum_core_number_theory.c
 ../src/c/hbnum_core_integer_extra.c
-../tests/hbnum_test_paths.prg
-../tests/test.prg
 
--o./${hb_comp}/${hb_name}
+-o../lib/win/${hb_comp}/hbnum

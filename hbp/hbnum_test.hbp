@@ -7,13 +7,15 @@
 {allmsvc}-lucrt
 -luxtheme
 
+# Console progress spinner uses a helper thread during long-running tests.
+-mt
 -i../include
 
 {allmsvc}-ldflag=/NODEFAULTLIB:msvcrt
 {allmsvc}-ldflag+=/NODEFAULTLIB:libucrt
 
-hbnum_robust.hbm
-hbnum_robust.hbc
+../hbm/hbnum_test.hbm
+../hbc/hbnum_test.hbc
 
 ../src/hb/hbnum.prg
 ../src/hb/hbnum_context.prg
@@ -26,6 +28,6 @@ hbnum_robust.hbc
 ../src/c/hbnum_core_number_theory.c
 ../src/c/hbnum_core_integer_extra.c
 ../tests/hbnum_test_paths.prg
-../tests/robustness.prg
+../tests/test.prg
 
--o./${hb_comp}/${hb_name}
+-o../exe/win/${hb_comp}/${hb_name}

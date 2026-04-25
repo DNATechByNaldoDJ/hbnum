@@ -5,6 +5,12 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add Zig build wrappers and tBigNumber support)"
 */
 
+2026-04-25 00:58 UTC naldodj (Organize build recipes and outputs)
+  Move build recipes out of mk/ into hbp/, hbc/, and hbm/, keep mk/ focused on wrapper scripts, and move the tBig smoke source to tools/.
+  Move generated/runtime outputs to lib/win/<compiler>, exe/win/<compiler>, and log/win/<compiler>; keep the historical benchmark CSV under benchmarks/.
+  Update MSVC and Zig wrapper scripts to build from the relocated hbp files and write to the new output tree.
+  Update test artifact path handling so test, benchmark, robustness, and smoke logs are written beside the new output layout under log/win/<compiler>.
+
 2026-04-24 17:39 UTC naldodj (Add Zig build wrappers and tBigNumber support)
   Introduce experimental Zig build support and helper scripts: add go64_zig_*.bat wrappers, a shared tools/go64_zig_build.bat builder, and tools/go64_zig_tbig_lib.bat to rebuild the external tBigNumber library with Zig.
   Update go64_all.bat to optionally run Zig wrappers when HBNUM_ZIG_ENABLE is set.

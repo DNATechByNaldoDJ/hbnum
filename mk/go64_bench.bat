@@ -2,13 +2,18 @@
 @ECHO OFF
 @REM hbnum: Released to Public Domain.
 
-IF EXIST ".\msvc64\hbnum_bench.exe" DEL /Q ".\msvc64\hbnum_bench.exe"
+SET "HB_ROOT=%~dp0.."
+SET "HB_OUT_DIR=%HB_ROOT%\exe\win\msvc64"
+SET "HB_OUT=%HB_OUT_DIR%\hbnum_bench.exe"
+
+IF NOT EXIST "%HB_OUT_DIR%" MKDIR "%HB_OUT_DIR%"
+IF EXIST "%HB_OUT%" DEL /Q "%HB_OUT%"
 IF ERRORLEVEL 1 (
-   ECHO [HBNum] Could not delete .\msvc64\hbnum_bench.exe.
+   ECHO [HBNum] Could not delete %HB_OUT%.
    endlocal & exit /b 1
 )
-IF EXIST ".\msvc64\hbnum_bench.exe" (
-   ECHO [HBNum] Could not delete .\msvc64\hbnum_bench.exe.
+IF EXIST "%HB_OUT%" (
+   ECHO [HBNum] Could not delete %HB_OUT%.
    endlocal & exit /b 1
 )
 
@@ -19,10 +24,9 @@ IF ERRORLEVEL 1 (
    endlocal & exit /b 1
 )
 
-%HB_BASE_PATH% hbnum_bench.hbp -comp=msvc64
+%HB_BASE_PATH% "%HB_ROOT%\hbp\hbnum_bench.hbp" -comp=msvc64
 IF ERRORLEVEL 1 (
    ECHO [HBNum] hbnum_bench.hbp build failed.
    endlocal & exit /b 1
 )
-
 endlocal & exit /b 0

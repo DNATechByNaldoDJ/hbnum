@@ -2,13 +2,18 @@
 @ECHO OFF
 @REM hbnum: Released to Public Domain.
 
-IF EXIST ".\msvc64\hbnum.lib" DEL /Q ".\msvc64\hbnum.lib"
+SET "HB_ROOT=%~dp0.."
+SET "HB_OUT_DIR=%HB_ROOT%\lib\win\msvc64"
+SET "HB_OUT=%HB_OUT_DIR%\hbnum.lib"
+
+IF NOT EXIST "%HB_OUT_DIR%" MKDIR "%HB_OUT_DIR%"
+IF EXIST "%HB_OUT%" DEL /Q "%HB_OUT%"
 IF ERRORLEVEL 1 (
-   ECHO [HBNum] Could not delete .\msvc64\hbnum.lib.
+   ECHO [HBNum] Could not delete %HB_OUT%.
    endlocal & exit /b 1
 )
-IF EXIST ".\msvc64\hbnum.lib" (
-   ECHO [HBNum] Could not delete .\msvc64\hbnum.lib.
+IF EXIST "%HB_OUT%" (
+   ECHO [HBNum] Could not delete %HB_OUT%.
    endlocal & exit /b 1
 )
 
@@ -19,10 +24,9 @@ IF ERRORLEVEL 1 (
    endlocal & exit /b 1
 )
 
-%HB_BASE_PATH% hbnum.hbp -comp=msvc64
+%HB_BASE_PATH% "%HB_ROOT%\hbp\hbnum.hbp" -comp=msvc64
 IF ERRORLEVEL 1 (
    ECHO [HBNum] hbnum.hbp build failed.
    endlocal & exit /b 1
 )
-
 endlocal & exit /b 0

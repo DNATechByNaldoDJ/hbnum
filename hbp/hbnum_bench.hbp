@@ -7,19 +7,15 @@
 {allmsvc}-lucrt
 -luxtheme
 
--i../include
-# tBigNumber is linked as an external prebuilt library here, and the selected
-# local .hbc pin chooses the MSVC or MinGW64 variant for the active compiler.
-# Its internal compile-time defines must already exist in that external build.
-# This target only needs the real MT Harbour VM because tBigNumber requests HB_MT.
+# Console progress spinner uses a helper thread during long-running cases.
 -mt
--dHBNUM_BENCH_WITH_TBIG
+-i../include
 
 {allmsvc}-ldflag=/NODEFAULTLIB:msvcrt
 {allmsvc}-ldflag+=/NODEFAULTLIB:libucrt
 
-hbnum_bench_tbig.hbm
-hbnum_bench_tbig.hbc
+../hbm/hbnum_bench.hbm
+../hbc/hbnum_bench.hbc
 
 ../src/hb/hbnum.prg
 ../src/hb/hbnum_context.prg
@@ -34,8 +30,4 @@ hbnum_bench_tbig.hbc
 ../tests/hbnum_test_paths.prg
 ../tests/bench_compare.prg
 
-{allmsvc}hbnum_tbig_msvc.hbc
-{allmingw}hbnum_tbig_mingw64.hbc
-{zig}hbnum_tbig_mingw64.hbc
-
--o./${hb_comp}/${hb_name}
+-o../exe/win/${hb_comp}/${hb_name}
