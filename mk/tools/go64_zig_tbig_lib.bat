@@ -95,9 +95,11 @@
 @SET "HB_INSTALL_INC=%HB_ZIG_INCDIR%"
 @REM tBigNumber embeds C++ code via BEGINDUMP inside a generated .c unit, so
 @REM Zig 0.16 needs the language forced explicitly instead of inferring from .c.
-@REM It also expects LDBL_DIG from float.h. Additional warning suppressions
+@REM It also expects LDBL_DIG from float.h. Define MinGW ANSI stdio before
+@REM any headers are parsed so snprintf("%Lf") formats long double results
+@REM correctly for tBigNumber Log/Log10/Ln. Additional warning suppressions
 @REM keep the Zig/Clang build quiet around upstream GCC/MinGW-oriented flags.
-@"%HB_ZIG_HBRUN%" "%HB_ZIG_HBMK2_PRG%" "%TBIG_ZIG_HBP%" -plat=win -cpu=x86_64 -jobs=10 -cpp -compr=no -comp=zig -xhb "-cflag=-x" "-cflag=c++" "-cflag=-include" "-cflag=float.h" "-cflag=-Wno-unknown-warning-option" "-cflag=-Wno-macro-redefined" "-cflag=-Wno-nullability-completeness" "-i%HB_ZIG_ROOT%\contrib\xhb" "-o%TBIG_ZIG_OUTPUT_BASE%"
+@"%HB_ZIG_HBRUN%" "%HB_ZIG_HBMK2_PRG%" "%TBIG_ZIG_HBP%" -plat=win -cpu=x86_64 -jobs=10 -cpp -compr=no -comp=zig -xhb -rebuild "-cflag=-x" "-cflag=c++" "-cflag=-D__USE_MINGW_ANSI_STDIO=1" "-cflag=-include" "-cflag=float.h" "-cflag=-Wno-unknown-warning-option" "-cflag=-Wno-macro-redefined" "-cflag=-Wno-nullability-completeness" "-i%HB_ZIG_ROOT%\contrib\xhb" "-o%TBIG_ZIG_OUTPUT_BASE%"
 @IF ERRORLEVEL 1 (
    @ECHO [HBNum/Zig][tBig] External tBigNumber Zig build failed.
    @popd

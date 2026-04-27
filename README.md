@@ -648,16 +648,49 @@ go64_commit_check.bat
 
 ## Next Steps
 
-Recommended priority:
+Implementation sequence:
 
-1. Implement `tests/hbnum_test.ini` profile loading and wire it into unit, robustness, benchmark, and comparative runners.
-2. Replace multi-limb bit-by-bit division with limb-estimated division; this should improve `Div`, `Mod`, `GCD`, `LCM`, `PowMod`, and `MillerRabin`.
-3. Expand the tBigNumber comparative matrix from the full external test inventory, with safe smoke-loop caps for very slow tBigNumber operations.
-4. Add an automated build-and-test gate that runs normal tests, robustness, selected benchmarks, and `go64_commit_check.bat`.
-5. Investigate and clean up `LNK4098` runtime-library warnings.
-6. Add general `Pow` with negative exponent and precision/context policy.
-7. Expand the formatting/conversion toolkit with grouped/fixed/custom output, `NoRnd`-style display behavior, and base conversion helpers such as `D2H/H2D/H2B/B2H/D2B/B2D`.
-8. Add optional cross-tool memory validation beyond Application Verifier when tooling is available.
+1. Add `tests/hbnum_test.ini` profile loading.
+   - Define repeatable profiles for unit, robustness, HBNum benchmark, and comparative benchmark runs.
+   - Keep environment variables as quick local overrides.
+   - Support seeds, loop counts, benchmark filters, selected test groups, explicit regression vectors, and tBigNumber safety caps.
+
+2. Add an automated build-and-test gate.
+   - Provide one local command that runs the normal validation flow.
+   - Include library/executable builds, unit tests, robustness tests, selected benchmarks, comparative smoke coverage, and `go64_commit_check.bat`.
+   - Make the gate report the same final PASS/FAIL status used by the log files.
+
+3. Replace multi-limb bit-by-bit division with limb-estimated division.
+   - The current multi-limb path in `hbnum_mag_divmod()` is correct but intentionally simple.
+   - A limb-estimated algorithm should improve `Div`, `Mod`, `GCD`, `LCM`, `PowMod`, `MillerRabin`, roots, and logs.
+   - Keep the current single-limb fast path and add focused regression vectors before replacing the multi-limb path.
+
+4. Rebenchmark and tune division-dependent operations.
+   - Compare MSVC64 and Zig results before and after the division rewrite.
+   - Track `PERF_MOD_512D`, `PERF_GCD_240D`, `PERF_LN_10P200`, root/log cases, and comparative tBigNumber cases.
+   - Update benchmark loop counts only when the measurements remain stable and useful.
+
+5. Expand the tBigNumber comparative matrix.
+   - Map more of the external `tBigNtst` inventory into HBNum tests.
+   - Use safe caps for very slow tBigNumber operations, especially large `Mod` and `NthRoot` cases.
+   - Keep comparative failures clearly attributable to HBNum, tBigNumber, or build/link configuration.
+
+6. Investigate and clean up `LNK4098` runtime-library warnings.
+   - Audit MSVC runtime flags in `.hbp` and `.hbc` files.
+   - Keep the final MSVC build warning profile intentional and documented.
+
+7. Add general `Pow` with negative exponent support.
+   - Define precision/context policy before exposing the API.
+   - Reuse existing exact `PowInt` behavior for non-negative integer exponents.
+
+8. Expand the formatting/conversion toolkit.
+   - Add grouped/fixed/custom output.
+   - Add `NoRnd`-style display behavior.
+   - Add base conversion helpers such as `D2H/H2D/H2B/B2H/D2B/B2D`.
+
+9. Add optional cross-tool memory validation.
+   - Keep Application Verifier-compatible workflows.
+   - Add additional tooling only when it is locally available and repeatable.
 
 ## README Maintenance
 

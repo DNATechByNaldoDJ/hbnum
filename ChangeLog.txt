@@ -2,8 +2,24 @@
      * Change  ! Fix  % Optimize  + Add  - Remove  ; Comment
    Entries may not always be in chronological/commit order.
    See license at the end of file.
-   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add Zig build wrappers and tBigNumber support)"
+   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Record new builds and tweak Zig tBig build script)"
 */
+
+2026-04-27 09:16 UTC naldodj (Record new builds and tweak Zig tBig build script)
+  Add newly generated Windows build artifacts to ChangeLog and update README's Next Steps into a concrete implementation sequence for tests, division improvements, benchmarking, and tooling.
+  Update mk/tools/go64_zig_tbig_lib.bat to force MinGW ANSI stdio for correct long-double printf behavior (add -D__USE_MINGW_ANSI_STDIO=1 and include flags), enable -rebuild, and adjust compiler flags for the Zig tBigNumber build.
+  Binaries and the MSVC64 library were rebuilt as part of these changes.
+  * exe/win/msvc64/hbnum_bench_tbig.exe
+  * exe/win/msvc64/hbnum_bench.exe
+  * exe/win/msvc64/hbnum_robust.exe
+  * exe/win/msvc64/hbnum_test.exe
+  * exe/win/zig/hbnum_bench_tbig.exe
+  * exe/win/zig/hbnum_bench.exe
+  * exe/win/zig/hbnum_robust.exe
+  * exe/win/zig/hbnum_test.exe
+  * lib/win/msvc64/hbnum.lib
+  * README.md
+  * mk/tools/go64_zig_tbig_lib.bat
 
 2026-04-25 00:58 UTC naldodj (Organize build recipes and outputs)
   Move build recipes out of mk/ into hbp/, hbc/, and hbm/, keep mk/ focused on wrapper scripts, and move the tBig smoke source to tools/.
