@@ -2,8 +2,34 @@
      * Change  ! Fix  % Optimize  + Add  - Remove  ; Comment
    Entries may not always be in chronological/commit order.
    See license at the end of file.
-   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Record new builds and tweak Zig tBig build script)"
+   (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add INI test profiles and validation gate)"
 */
+
+2026-05-04 00:19 UTC naldodj (Add INI test profiles and validation gate)
+  Add shared tests/hbnum_test.ini profile loading with HBNUM_TEST_PROFILE support and environment-variable overrides for unit, robustness, benchmark, and comparative benchmark runners.
+  Add unit group selection, profile-driven mod fuzz loop counts, robustness loop loading, benchmark filter/skip_perf loading, and comparative tBigNumber enable/loop caps.
+  Add mk/go64_gate.bat as a local build-and-test gate, skip it from go64_all.bat, and make go64_commit_check.bat resolve commit.hb from the script directory.
+  Update README with current profile/gate status, knobs, and next steps. Rebuild the MSVC64 library and executables as part of validation.
+  + tests/hbnum_test_config.prg
+  + tests/hbnum_test.ini
+  + mk/go64_gate.bat
+  * tests/test.prg
+  * tests/robustness.prg
+  * tests/bench_compare.prg
+  * tests/hbnum_test_paths.prg
+  * hbp/hbnum_test.hbp
+  * hbp/hbnum_robust.hbp
+  * hbp/hbnum_bench.hbp
+  * hbp/hbnum_bench_tbig.hbp
+  * tests/test.hbp
+  * mk/go64_all.bat
+  * mk/go64_commit_check.bat
+  * README.md
+  * exe/win/msvc64/hbnum_test.exe
+  * exe/win/msvc64/hbnum_robust.exe
+  * exe/win/msvc64/hbnum_bench.exe
+  * exe/win/msvc64/hbnum_bench_tbig.exe
+  * lib/win/msvc64/hbnum.lib
 
 2026-04-27 09:16 UTC naldodj (Record new builds and tweak Zig tBig build script)
   Add newly generated Windows build artifacts to ChangeLog and update README's Next Steps into a concrete implementation sequence for tests, division improvements, benchmarking, and tooling.

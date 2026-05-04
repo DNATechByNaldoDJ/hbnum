@@ -4,6 +4,35 @@ hbnum: Released to Public Domain.
 REQUEST hb_DirExists
 REQUEST hb_DirCreate
 
+FUNCTION HBNumTestRootDir()
+   LOCAL cDir := hb_FNameDir( hb_ProgName() )
+   LOCAL cSep := hb_ps()
+   LOCAL cMarker := cSep + "exe" + cSep
+   LOCAL nAt
+   LOCAL nTailAt
+   LOCAL cTail
+
+   IF Empty( cDir )
+      cDir := "."
+   ENDIF
+
+   IF Right( cDir, 1 ) == cSep
+      cDir := Left( cDir, Len( cDir ) - 1 )
+   ENDIF
+
+   nAt := At( cMarker, cDir )
+   IF nAt > 0
+      cDir := Left( cDir, nAt - 1 )
+   ELSE
+      nTailAt := RAt( cSep, cDir )
+      cTail := Lower( IIf( nTailAt > 0, SubStr( cDir, nTailAt + 1 ), cDir ) )
+      IF nTailAt > 0 .AND. ( cTail == "tests" .OR. cTail == "mk" )
+         cDir := Left( cDir, nTailAt - 1 )
+      ENDIF
+   ENDIF
+
+RETURN cDir + cSep
+
 FUNCTION HBNumTestLogDir()
    LOCAL cDir := hb_FNameDir( hb_ProgName() )
    LOCAL cSep := hb_ps()
@@ -29,6 +58,10 @@ FUNCTION HBNumTestLogDir()
    __EnsureDir( cDir )
 
 RETURN cDir + cSep
+
+FUNCTION HBNumTestProjectPath( cPath )
+   hb_default( @cPath, "" )
+RETURN HBNumTestRootDir() + StrTran( cPath, "/", hb_ps() )
 
 FUNCTION HBNumTestArtifactPath( cFileName )
    hb_default( @cFileName, "" )

@@ -256,7 +256,7 @@ Planned extensions for this same area include grouped/fixed decimal formatting,
 
 ## Implementation Status
 
-Updated: 2026-04-23.
+Updated: 2026-05-04.
 
 Core arithmetic and model:
 
@@ -314,11 +314,14 @@ Testing and validation:
 - [x] Mod fuzz tests in the normal test suite.
 - [x] Robustness/property runner: `tests/robustness.prg`.
 - [x] Robustness loop control through `HBNUM_ROBUST_*`.
+- [x] INI profile loading through `tests/hbnum_test.ini`.
+- [x] Unit group selection and mod fuzz loop control through profile/env settings.
 - [x] Benchmark and accuracy runner: `tests/bench_compare.prg`.
 - [x] CSV and log output for benchmark runs.
 - [x] Comparative HBNum x tBigNumber build path.
 - [x] Comparative tBigNumber build links the real Harbour MT VM; the old link stub was removed.
 - [x] Harbour commit-check wrapper exists: `mk/go64_commit_check.bat`.
+- [x] Local build-and-test validation gate: `mk/go64_gate.bat`.
 - [ ] CI or pre-commit automation for the full validation flow.
 
 Performance:
@@ -334,7 +337,7 @@ Porting and compatibility:
 - [x] Core tBigNumber-compatible arithmetic subset covered by comparative tests.
 - [x] Root/log comparative subset covered for selected vectors.
 - [ ] Full tBigNumber inventory mapping is not complete.
-- [ ] INI/profile-driven test expansion, similar in spirit to `tBigNtst.ini`, is not implemented yet.
+- [ ] Full INI/profile-driven operand and regression-vector expansion is not complete.
 
 ## Build
 
@@ -365,11 +368,26 @@ go64_lib.bat
 go64_test.bat
 go64_bench.bat
 go64_robust.bat
+go64_gate.bat
 ```
 
 `go64_all.bat` runs every other `.bat` file in `mk/` in name order, skips
-itself, and stops on the first failing script. If `HBNUM_ZIG_ENABLE=1` is set
-before launching it, that also includes the opt-in `go64_zig_*.bat` wrappers.
+itself and `go64_gate.bat`, and stops on the first failing script. If
+`HBNUM_ZIG_ENABLE=1` is set before launching it, that also includes the opt-in
+`go64_zig_*.bat` wrappers.
+
+Run the local validation gate:
+
+```bat
+cd mk
+go64_gate.bat
+```
+
+The gate defaults to `HBNUM_TEST_PROFILE=gate` when no profile is already set.
+It builds the MSVC64 library and executables, runs unit tests, robustness tests,
+selected HBNum benchmark coverage, comparative tBigNumber smoke coverage, and
+`go64_commit_check.bat`. Set `HBNUM_GATE_SKIP_TBIG=1` to skip the comparative
+tBigNumber build/run when that external checkout is not available.
 
 Build the comparative tBigNumber benchmark:
 
@@ -485,12 +503,31 @@ log/win/msvc64/hbnum_robust.log
 
 The project already supports environment-driven test and benchmark control.
 
+Shared profile loader:
+
+| Variable | Purpose |
+| --- | --- |
+| `HBNUM_TEST_INI` | Overrides the default profile file path (`tests/hbnum_test.ini`) |
+| `HBNUM_TEST_PROFILE` | Selects profile override sections such as `profile.gate.*` or `profile.smoke.*` |
+
+Unit runner:
+
+| Variable | Purpose |
+| --- | --- |
+| `HBNUM_UNIT_GROUPS` | Overrides `[unit] groups`; comma/semicolon/pipe separated |
+| `HBNUM_UNIT_MOD_FUZZ_SEED` | Overrides `[unit] mod_fuzz_seed` |
+| `HBNUM_UNIT_MOD_FUZZ_DECIMAL_SEED` | Overrides `[unit] mod_fuzz_decimal_seed` |
+| `HBNUM_UNIT_MOD_FUZZ_INT_LOOPS` | Overrides `[unit] mod_fuzz_int_loops` |
+| `HBNUM_UNIT_MOD_FUZZ_DECIMAL_LOOPS` | Overrides `[unit] mod_fuzz_decimal_loops` |
+
 Benchmark runner:
 
 | Variable | Purpose |
 | --- | --- |
 | `HBNUM_BENCH_FILTER` | Runs only cases matching the filter text |
 | `HBNUM_BENCH_SKIP_PERF` | Skips performance loops when truthy |
+| `HBNUM_TBIG_ENABLE` | Enables/disables comparative tBigNumber sections in comparative builds |
+| `HBNUM_TBIG_<OP>_LOOPS` | Overrides `[compare.tbig]` caps, for example `HBNUM_TBIG_MOD_LOOPS` |
 
 Example:
 
@@ -522,27 +559,34 @@ exe\win\msvc64\hbnum_robust.exe
 
 Any robustness loop count can be set to `0` to isolate another suite.
 
-## Planned INI-Driven Test Profiles
+## INI-Driven Test Profiles
 
-The existing environment variables are useful, but they are not enough for
-large, repeatable test campaigns. A planned next step is a configuration file
-similar in purpose to `tBigNumber/tBigNtst.ini`.
+The existing environment variables remain useful for quick local debugging, but
+repeatable test campaigns now have a shared INI profile file similar in purpose
+to `tBigNumber/tBigNtst.ini`.
 
-Proposed file:
+Default file:
 
 ```txt
 tests/hbnum_test.ini
 ```
 
-Proposed responsibilities:
+Implemented responsibilities:
 
-- Select suites: unit, robustness, HBNum benchmark, comparative benchmark.
-- Select test groups: `mod`, `div`, `number_theory`, `root_log`, `random`.
+- Select unit test groups: `add`, `sub`, `mul`, `div`, `rounding`,
+  `root_log`, `domain_policy`, `compare`, `format`, `mod`, `powint`,
+  `number_theory`, `random`, `tbigntst`.
 - Configure seeds and loop counts.
-- Configure operand ranges and digit sizes.
-- Configure explicit values for one-off regression vectors.
 - Configure tBigNumber smoke caps for operations that are known to be slow.
 - Keep command-line/env overrides for quick local debugging.
+- Provide named overrides such as `gate` and `smoke` through
+  `HBNUM_TEST_PROFILE`.
+
+Still planned for this area:
+
+- Select whole suites from a single orchestrator.
+- Configure operand ranges and digit sizes.
+- Configure explicit values for one-off regression vectors.
 
 Sketch:
 
@@ -573,8 +617,9 @@ sqrt_loops=1
 nthroot_loops=1
 ```
 
-Status: not implemented yet. The current supported mechanism is still the
-environment-variable interface above.
+Status: profile loading is implemented for the unit, robustness, benchmark, and
+comparative benchmark runners. Environment variables still take precedence over
+INI values.
 
 ## tBigNumber Comparative Mode
 
@@ -650,15 +695,13 @@ go64_commit_check.bat
 
 Implementation sequence:
 
-1. Add `tests/hbnum_test.ini` profile loading.
-   - Define repeatable profiles for unit, robustness, HBNum benchmark, and comparative benchmark runs.
-   - Keep environment variables as quick local overrides.
-   - Support seeds, loop counts, benchmark filters, selected test groups, explicit regression vectors, and tBigNumber safety caps.
+1. Extend `tests/hbnum_test.ini` profile coverage.
+   - Add operand ranges, digit-size controls, and explicit regression vectors.
+   - Add an orchestrator that can select whole suites from `[run] suites`.
 
-2. Add an automated build-and-test gate.
-   - Provide one local command that runs the normal validation flow.
-   - Include library/executable builds, unit tests, robustness tests, selected benchmarks, comparative smoke coverage, and `go64_commit_check.bat`.
-   - Make the gate report the same final PASS/FAIL status used by the log files.
+2. Add CI or pre-commit automation for the validation flow.
+   - Reuse `mk/go64_gate.bat` where practical.
+   - Keep the gate's final PASS/FAIL status aligned with the log files.
 
 3. Replace multi-limb bit-by-bit division with limb-estimated division.
    - The current multi-limb path in `hbnum_mag_divmod()` is correct but intentionally simple.

@@ -5,7 +5,7 @@
 @SET "PATH=C:\Program Files\Git\cmd;%PATH%"
 @SET HB_RUN_PATH="F:\harbour_msvc\bin\win\msvc64\hbrun.exe"
 
-@%HB_RUN_PATH% ..\bin\commit.hb --check-only
+@%HB_RUN_PATH% "%~dp0..\bin\commit.hb" --check-only
 @IF ERRORLEVEL 1 (
    @ECHO [HBNum] Harbour commit check failed.
    @endlocal & exit /b 1

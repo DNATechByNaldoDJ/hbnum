@@ -45,21 +45,6 @@ STATIC PROCEDURE __SetFailure( cFailure )
    __cLastFailure := cFailure
 RETURN
 
-STATIC FUNCTION __ReadEnvInt( cName, nDefault )
-   LOCAL cValue := AllTrim( GetEnv( cName ) )
-   LOCAL nValue
-
-   IF Empty( cValue )
-      RETURN nDefault
-   ENDIF
-
-   nValue := Int( Val( cValue ) )
-   IF nValue < 0
-      RETURN nDefault
-   ENDIF
-
-RETURN nValue
-
 STATIC PROCEDURE __SeedRand( nSeed )
    nSeed := Int( nSeed )
 
@@ -940,17 +925,21 @@ STATIC FUNCTION __StressLifecycle( nLoops )
 RETURN .T.
 
 FUNCTION Main()
-   LOCAL nSeed := __ReadEnvInt( "HBNUM_ROBUST_SEED", 20260418 )
-   LOCAL nIntLoops := __ReadEnvInt( "HBNUM_ROBUST_INT_LOOPS", 250 )
-   LOCAL nDecimalLoops := __ReadEnvInt( "HBNUM_ROBUST_DECIMAL_LOOPS", 250 )
-   LOCAL nLargeLoops := __ReadEnvInt( "HBNUM_ROBUST_LARGE_LOOPS", 80 )
-   LOCAL nLifecycleLoops := __ReadEnvInt( "HBNUM_ROBUST_LIFECYCLE_LOOPS", 1000 )
+   LOCAL nSeed := HBNumTestConfigGetInt( "run", "seed", 20260418, "HBNUM_ROBUST_SEED" )
+   LOCAL nIntLoops := HBNumTestConfigGetInt( "robustness", "int_loops", 250, "HBNUM_ROBUST_INT_LOOPS" )
+   LOCAL nDecimalLoops := HBNumTestConfigGetInt( "robustness", "decimal_loops", 250, "HBNUM_ROBUST_DECIMAL_LOOPS" )
+   LOCAL nLargeLoops := HBNumTestConfigGetInt( "robustness", "large_loops", 80, "HBNUM_ROBUST_LARGE_LOOPS" )
+   LOCAL nLifecycleLoops := HBNumTestConfigGetInt( "robustness", "lifecycle_loops", 1000, "HBNUM_ROBUST_LIFECYCLE_LOOPS" )
+   LOCAL cProfile := HBNumTestConfigProfileName()
+   LOCAL cConfigPath := HBNumTestConfigLoadedPath()
    LOCAL lOk := .T.
 
    __SeedRand( nSeed )
    __InitRobustLog()
 
    ? "HBNum Robustness Suite"
+   ? "config          :", cConfigPath
+   ? "profile         :", IIf( Empty( cProfile ), "(default)", cProfile )
    ? "seed            :", hb_ntos( nSeed )
    ? "int loops       :", hb_ntos( nIntLoops )
    ? "decimal loops   :", hb_ntos( nDecimalLoops )
@@ -958,7 +947,9 @@ FUNCTION Main()
    ? "lifecycle loops :", hb_ntos( nLifecycleLoops )
 
    __LogLine( "CONFIG", ;
-      "seed=" + hb_ntos( nSeed ) + ;
+      "file=" + cConfigPath + ;
+      ", profile=" + IIf( Empty( cProfile ), "(default)", cProfile ) + ;
+      ", seed=" + hb_ntos( nSeed ) + ;
       ", int_loops=" + hb_ntos( nIntLoops ) + ;
       ", decimal_loops=" + hb_ntos( nDecimalLoops ) + ;
       ", large_loops=" + hb_ntos( nLargeLoops ) + ;

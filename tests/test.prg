@@ -94,6 +94,25 @@ STATIC FUNCTION __RunTest( cName, lResult )
       IIf( lResult, HB_LOG_INFO, HB_LOG_ERROR ) )
 RETURN lResult
 
+STATIC FUNCTION __UnitGroupEnabled( cGroup )
+   LOCAL cGroups := HBNumTestConfigGetText( "unit", "groups", "", "HBNUM_UNIT_GROUPS" )
+RETURN HBNumTestConfigListHas( cGroups, cGroup )
+
+STATIC PROCEDURE __BeginUnitGroup( cTitle )
+   ? "== " + cTitle + " =="
+   __LogLine( "GROUP", "== " + cTitle + " ==", HB_LOG_INFO )
+   __SpinnerStart( cTitle )
+RETURN
+
+STATIC PROCEDURE __EndUnitGroup()
+   __SpinnerStop()
+RETURN
+
+STATIC PROCEDURE __SkipUnitGroup( cTitle, cGroup )
+   ? "[SKIP]", cTitle
+   __LogLine( "GROUP", "== " + cTitle + " skipped by unit groups profile (" + cGroup + ") ==", HB_LOG_INFO )
+RETURN
+
 STATIC FUNCTION __ExpectErrorContains( bAction, cExpected, cOperation )
    LOCAL bOldError := ErrorBlock( {|oError| Break( oError ) } )
    LOCAL lRaised := .F.
@@ -358,12 +377,22 @@ RETURN .T.
 
 FUNCTION Main()
    LOCAL lOk := .T.
+   LOCAL cProfile := HBNumTestConfigProfileName()
+   LOCAL cConfigPath := HBNumTestConfigLoadedPath()
 
    __InitTestLog()
 
-   ? "== ADD TESTS =="
-   __LogLine( "GROUP", "== ADD TESTS ==", HB_LOG_INFO )
-   __SpinnerStart( "ADD TESTS" )
+   ? "HBNum Unit Test Suite"
+   ? "config :", cConfigPath
+   ? "profile:", IIf( Empty( cProfile ), "(default)", cProfile )
+   __LogLine( "CONFIG", ;
+      "file=" + cConfigPath + ;
+      ", profile=" + IIf( Empty( cProfile ), "(default)", cProfile ) + ;
+      ", unit_groups=" + HBNumTestConfigGetText( "unit", "groups", "(all)", "HBNUM_UNIT_GROUPS" ), ;
+      HB_LOG_INFO )
+
+   IF __UnitGroupEnabled( "add" )
+   __BeginUnitGroup( "ADD TESTS" )
    lOk := __RunTest( "Test_Add_Simple", Test_Add_Simple() ) .AND. lOk
    lOk := __RunTest( "Test_Add_Carry", Test_Add_Carry() ) .AND. lOk
    lOk := __RunTest( "Test_Add_DifferentSize", Test_Add_DifferentSize() ) .AND. lOk
@@ -372,33 +401,39 @@ FUNCTION Main()
    lOk := __RunTest( "Test_Add_Internal", Test_Add_Internal() ) .AND. lOk
    lOk := __RunTest( "Test_Add_Commutative", Test_Add_Commutative() ) .AND. lOk
    lOk := __RunTest( "Test_Add_NoMutation", Test_Add_NoMutation() ) .AND. lOk
-   __SpinnerStop()
+   __EndUnitGroup()
+   ELSE
+      __SkipUnitGroup( "ADD TESTS", "add" )
+   ENDIF
 
-   ? "== SUB TESTS =="
-   __LogLine( "GROUP", "== SUB TESTS ==", HB_LOG_INFO )
-   __SpinnerStart( "SUB TESTS" )
+   IF __UnitGroupEnabled( "sub" )
+   __BeginUnitGroup( "SUB TESTS" )
    lOk := __RunTest( "Test_Sub_Simple", Test_Sub_Simple() ) .AND. lOk
    lOk := __RunTest( "Test_Sub_Borrow", Test_Sub_Borrow() ) .AND. lOk
    lOk := __RunTest( "Test_Sub_DifferentSize", Test_Sub_DifferentSize() ) .AND. lOk
    lOk := __RunTest( "Test_Sub_Negative", Test_Sub_Negative() ) .AND. lOk
    lOk := __RunTest( "Test_Sub_Zero", Test_Sub_Zero() ) .AND. lOk
    lOk := __RunTest( "Test_Sub_NoMutation", Test_Sub_NoMutation() ) .AND. lOk
-   __SpinnerStop()
+   __EndUnitGroup()
+   ELSE
+      __SkipUnitGroup( "SUB TESTS", "sub" )
+   ENDIF
 
-   ? "== MUL TESTS =="
-   __LogLine( "GROUP", "== MUL TESTS ==", HB_LOG_INFO )
-   __SpinnerStart( "MUL TESTS" )
+   IF __UnitGroupEnabled( "mul" )
+   __BeginUnitGroup( "MUL TESTS" )
    lOk := __RunTest( "Test_Mul_Simple", Test_Mul_Simple() ) .AND. lOk
    lOk := __RunTest( "Test_Mul_Carry", Test_Mul_Carry() ) .AND. lOk
    lOk := __RunTest( "Test_Mul_DifferentSize", Test_Mul_DifferentSize() ) .AND. lOk
    lOk := __RunTest( "Test_Mul_Negative", Test_Mul_Negative() ) .AND. lOk
    lOk := __RunTest( "Test_Mul_Zero", Test_Mul_Zero() ) .AND. lOk
    lOk := __RunTest( "Test_Mul_NoMutation", Test_Mul_NoMutation() ) .AND. lOk
-   __SpinnerStop()
+   __EndUnitGroup()
+   ELSE
+      __SkipUnitGroup( "MUL TESTS", "mul" )
+   ENDIF
 
-   ? "== DIV TESTS =="
-   __LogLine( "GROUP", "== DIV TESTS ==", HB_LOG_INFO )
-   __SpinnerStart( "DIV TESTS" )
+   IF __UnitGroupEnabled( "div" )
+   __BeginUnitGroup( "DIV TESTS" )
    lOk := __RunTest( "Test_Div_Simple", Test_Div_Simple() ) .AND. lOk
    lOk := __RunTest( "Test_Div_Truncate", Test_Div_Truncate() ) .AND. lOk
    lOk := __RunTest( "Test_Div_Precision", Test_Div_Precision() ) .AND. lOk
@@ -407,11 +442,13 @@ FUNCTION Main()
    lOk := __RunTest( "Test_Div_NoMutation", Test_Div_NoMutation() ) .AND. lOk
    lOk := __RunTest( "Test_Div_Exact_NoPrecision", Test_Div_Exact_NoPrecision() ) .AND. lOk
    lOk := __RunTest( "Test_Div_NonTerminating_RequiresPrecision", Test_Div_NonTerminating_RequiresPrecision() ) .AND. lOk
-   __SpinnerStop()
+   __EndUnitGroup()
+   ELSE
+      __SkipUnitGroup( "DIV TESTS", "div" )
+   ENDIF
 
-   ? "== PRECISION/ROUNDING TESTS =="
-   __LogLine( "GROUP", "== PRECISION/ROUNDING TESTS ==", HB_LOG_INFO )
-   __SpinnerStart( "PRECISION/ROUNDING TESTS" )
+   IF __UnitGroupEnabled( "rounding" )
+   __BeginUnitGroup( "PRECISION/ROUNDING TESTS" )
    lOk := __RunTest( "Test_Context_DefaultPrecision", Test_Context_DefaultPrecision() ) .AND. lOk
    lOk := __RunTest( "Test_Context_InstancePrecision", Test_Context_InstancePrecision() ) .AND. lOk
    lOk := __RunTest( "Test_Context_Propagation", Test_Context_Propagation() ) .AND. lOk
@@ -421,11 +458,13 @@ FUNCTION Main()
    lOk := __RunTest( "Test_Floor_Negative", Test_Floor_Negative() ) .AND. lOk
    lOk := __RunTest( "Test_Ceiling_Positive", Test_Ceiling_Positive() ) .AND. lOk
    lOk := __RunTest( "Test_Rounding_NoMutation", Test_Rounding_NoMutation() ) .AND. lOk
-   __SpinnerStop()
+   __EndUnitGroup()
+   ELSE
+      __SkipUnitGroup( "PRECISION/ROUNDING TESTS", "rounding" )
+   ENDIF
 
-   ? "== ROOT/LOG TESTS =="
-   __LogLine( "GROUP", "== ROOT/LOG TESTS ==", HB_LOG_INFO )
-   __SpinnerStart( "ROOT/LOG TESTS" )
+   IF __UnitGroupEnabled( "root_log" )
+   __BeginUnitGroup( "ROOT/LOG TESTS" )
    lOk := __RunTest( "Test_RootContext_DefaultPrecision", Test_RootContext_DefaultPrecision() ) .AND. lOk
    lOk := __RunTest( "Test_RootContext_InstancePropagation", Test_RootContext_InstancePropagation() ) .AND. lOk
    lOk := __RunTest( "Test_Sqrt_Exact_NoPrecision", Test_Sqrt_Exact_NoPrecision() ) .AND. lOk
@@ -439,11 +478,13 @@ FUNCTION Main()
    lOk := __RunTest( "Test_Log_NonTerminating_RequiresPrecision", Test_Log_NonTerminating_RequiresPrecision() ) .AND. lOk
    lOk := __RunTest( "Test_Ln_ExactOne_NoPrecision", Test_Ln_ExactOne_NoPrecision() ) .AND. lOk
    lOk := __RunTest( "Test_NthRoot_Approx_WithPrecision", Test_NthRoot_Approx_WithPrecision() ) .AND. lOk
-   __SpinnerStop()
+   __EndUnitGroup()
+   ELSE
+      __SkipUnitGroup( "ROOT/LOG TESTS", "root_log" )
+   ENDIF
 
-   ? "== DOMAIN/POLICY TESTS =="
-   __LogLine( "GROUP", "== DOMAIN/POLICY TESTS ==", HB_LOG_INFO )
-   __SpinnerStart( "DOMAIN/POLICY TESTS" )
+   IF __UnitGroupEnabled( "domain_policy" )
+   __BeginUnitGroup( "DOMAIN/POLICY TESTS" )
    lOk := __RunTest( "Test_Div_ByZero_Error", Test_Div_ByZero_Error() ) .AND. lOk
    lOk := __RunTest( "Test_Sqrt_Negative_Error", Test_Sqrt_Negative_Error() ) .AND. lOk
    lOk := __RunTest( "Test_NthRoot_DegreeZero_Error", Test_NthRoot_DegreeZero_Error() ) .AND. lOk
@@ -453,22 +494,38 @@ FUNCTION Main()
    lOk := __RunTest( "Test_Log10_NonPositive_Error", Test_Log10_NonPositive_Error() ) .AND. lOk
    lOk := __RunTest( "Test_Ln_NonPositive_Error", Test_Ln_NonPositive_Error() ) .AND. lOk
    lOk := __RunTest( "Test_PowInt_NegativeExponent_Error", Test_PowInt_NegativeExponent_Error() ) .AND. lOk
-   __SpinnerStop()
+   __EndUnitGroup()
+   ELSE
+      __SkipUnitGroup( "DOMAIN/POLICY TESTS", "domain_policy" )
+   ENDIF
 
-   ? "== EXT TESTS =="
-   __LogLine( "GROUP", "== EXT TESTS ==", HB_LOG_INFO )
-   __SpinnerStart( "EXT TESTS" )
+   IF __UnitGroupEnabled( "compare" )
+   __BeginUnitGroup( "COMPARE TESTS" )
    lOk := __RunTest( "Test_Compare_Eq", Test_Compare_Eq() ) .AND. lOk
    lOk := __RunTest( "Test_Compare_Order", Test_Compare_Order() ) .AND. lOk
    lOk := __RunTest( "Test_Compare_RawMatrix", Test_Compare_RawMatrix() ) .AND. lOk
    lOk := __RunTest( "Test_Compare_ScaledOrdering", Test_Compare_ScaledOrdering() ) .AND. lOk
    lOk := __RunTest( "Test_Compare_ZeroScaled", Test_Compare_ZeroScaled() ) .AND. lOk
    lOk := __RunTest( "Test_Min_Max", Test_Min_Max() ) .AND. lOk
+   __EndUnitGroup()
+   ELSE
+      __SkipUnitGroup( "COMPARE TESTS", "compare" )
+   ENDIF
+
+   IF __UnitGroupEnabled( "format" )
+   __BeginUnitGroup( "FORMAT TESTS" )
    lOk := __RunTest( "Test_Format_Scientific_Exact", Test_Format_Scientific_Exact() ) .AND. lOk
    lOk := __RunTest( "Test_Format_Scientific_SignificantDigits", Test_Format_Scientific_SignificantDigits() ) .AND. lOk
    lOk := __RunTest( "Test_Format_Engineering_Exact", Test_Format_Engineering_Exact() ) .AND. lOk
    lOk := __RunTest( "Test_Format_Engineering_SignificantDigits", Test_Format_Engineering_SignificantDigits() ) .AND. lOk
    lOk := __RunTest( "Test_Format_NoMutation", Test_Format_NoMutation() ) .AND. lOk
+   __EndUnitGroup()
+   ELSE
+      __SkipUnitGroup( "FORMAT TESTS", "format" )
+   ENDIF
+
+   IF __UnitGroupEnabled( "mod" )
+   __BeginUnitGroup( "MOD TESTS" )
    lOk := __RunTest( "Test_Mod_Simple", Test_Mod_Simple() ) .AND. lOk
    lOk := __RunTest( "Test_Mod_NegativeDividend", Test_Mod_NegativeDividend() ) .AND. lOk
    lOk := __RunTest( "Test_Mod_NegativeDivisor", Test_Mod_NegativeDivisor() ) .AND. lOk
@@ -478,6 +535,13 @@ FUNCTION Main()
    lOk := __RunTest( "Test_Mod_NoMutation", Test_Mod_NoMutation() ) .AND. lOk
    lOk := __RunTest( "Test_Mod_Fuzz_SmallIntOracle", Test_Mod_Fuzz_SmallIntOracle() ) .AND. lOk
    lOk := __RunTest( "Test_Mod_Fuzz_SmallDecimalOracle", Test_Mod_Fuzz_SmallDecimalOracle() ) .AND. lOk
+   __EndUnitGroup()
+   ELSE
+      __SkipUnitGroup( "MOD TESTS", "mod" )
+   ENDIF
+
+   IF __UnitGroupEnabled( "powint" )
+   __BeginUnitGroup( "POWINT TESTS" )
    lOk := __RunTest( "Test_PowInt_Simple", Test_PowInt_Simple() ) .AND. lOk
    lOk := __RunTest( "Test_PowInt_ZeroExponent", Test_PowInt_ZeroExponent() ) .AND. lOk
    lOk := __RunTest( "Test_PowInt_NegativeBase", Test_PowInt_NegativeBase() ) .AND. lOk
@@ -485,11 +549,13 @@ FUNCTION Main()
    lOk := __RunTest( "Test_PowInt_DecimalBase", Test_PowInt_DecimalBase() ) .AND. lOk
    lOk := __RunTest( "Test_PowInt_ZeroBasePositiveExponent", Test_PowInt_ZeroBasePositiveExponent() ) .AND. lOk
    lOk := __RunTest( "Test_PowInt_NoMutation", Test_PowInt_NoMutation() ) .AND. lOk
-   __SpinnerStop()
+   __EndUnitGroup()
+   ELSE
+      __SkipUnitGroup( "POWINT TESTS", "powint" )
+   ENDIF
 
-   ? "== NUMBER THEORY TESTS =="
-   __LogLine( "GROUP", "== NUMBER THEORY TESTS ==", HB_LOG_INFO )
-   __SpinnerStart( "NUMBER THEORY TESTS" )
+   IF __UnitGroupEnabled( "number_theory" )
+   __BeginUnitGroup( "NUMBER THEORY TESTS" )
    lOk := __RunTest( "Test_Gcd_Simple", Test_Gcd_Simple() ) .AND. lOk
    lOk := __RunTest( "Test_Gcd_Zero", Test_Gcd_Zero() ) .AND. lOk
    lOk := __RunTest( "Test_Gcd_Negative", Test_Gcd_Negative() ) .AND. lOk
@@ -512,15 +578,24 @@ FUNCTION Main()
    lOk := __RunTest( "Test_Fi_Negative_Error", Test_Fi_Negative_Error() ) .AND. lOk
    lOk := __RunTest( "Test_MillerRabin_Prime_Mersenne127", Test_MillerRabin_Prime_Mersenne127() ) .AND. lOk
    lOk := __RunTest( "Test_MillerRabin_Composite_2047", Test_MillerRabin_Composite_2047() ) .AND. lOk
-   lOk := __RunTest( "Test_Randomize_DefaultRange", Test_Randomize_DefaultRange() ) .AND. lOk
-   lOk := __RunTest( "Test_Randomize_CustomLargeRange", Test_Randomize_CustomLargeRange() ) .AND. lOk
    lOk := __RunTest( "Test_Fibonacci_Threshold10", Test_Fibonacci_Threshold10() ) .AND. lOk
    lOk := __RunTest( "Test_Fibonacci_Threshold1000000", Test_Fibonacci_Threshold1000000() ) .AND. lOk
-   __SpinnerStop()
+   __EndUnitGroup()
+   ELSE
+      __SkipUnitGroup( "NUMBER THEORY TESTS", "number_theory" )
+   ENDIF
 
-   ? "== tBigNtst COMPAT TESTS =="
-   __LogLine( "GROUP", "== tBigNtst COMPAT TESTS ==", HB_LOG_INFO )
-   __SpinnerStart( "tBigNtst COMPAT TESTS" )
+   IF __UnitGroupEnabled( "random" )
+   __BeginUnitGroup( "RANDOM TESTS" )
+   lOk := __RunTest( "Test_Randomize_DefaultRange", Test_Randomize_DefaultRange() ) .AND. lOk
+   lOk := __RunTest( "Test_Randomize_CustomLargeRange", Test_Randomize_CustomLargeRange() ) .AND. lOk
+   __EndUnitGroup()
+   ELSE
+      __SkipUnitGroup( "RANDOM TESTS", "random" )
+   ENDIF
+
+   IF __UnitGroupEnabled( "tbigntst" )
+   __BeginUnitGroup( "tBigNtst COMPAT TESTS" )
    lOk := __RunTest( "Test_TBigNtst19_Factorial_100", Test_TBigNtst19_Factorial_100() ) .AND. lOk
    lOk := __RunTest( "Test_TBigNtst24_Fi_97", Test_TBigNtst24_Fi_97() ) .AND. lOk
    lOk := __RunTest( "Test_TBigNtst_Add_RepeatedDelta", Test_TBigNtst_Add_RepeatedDelta() ) .AND. lOk
@@ -539,7 +614,10 @@ FUNCTION Main()
    lOk := __RunTest( "Test_TBigNtst37_Fibonacci_Mersenne31", Test_TBigNtst37_Fibonacci_Mersenne31() ) .AND. lOk
    lOk := __RunTest( "Test_TBigNtst38_BigMersenne127", Test_TBigNtst38_BigMersenne127() ) .AND. lOk
    lOk := __RunTest( "Test_TBigNtst39_BigGoogol", Test_TBigNtst39_BigGoogol() ) .AND. lOk
-   __SpinnerStop()
+   __EndUnitGroup()
+   ELSE
+      __SkipUnitGroup( "tBigNtst COMPAT TESTS", "tbigntst" )
+   ENDIF
 
    IF lOk
       ? "ALL TESTS PASSED"
@@ -1488,8 +1566,8 @@ RETURN lResult
 
 
 FUNCTION Test_Mod_Fuzz_SmallIntOracle()
-   LOCAL nSeed := 20260421
-   LOCAL nLoops := 400
+   LOCAL nSeed := HBNumTestConfigGetInt( "unit", "mod_fuzz_seed", 20260421, "HBNUM_UNIT_MOD_FUZZ_SEED" )
+   LOCAL nLoops := HBNumTestConfigGetInt( "unit", "mod_fuzz_int_loops", 400, "HBNUM_UNIT_MOD_FUZZ_INT_LOOPS" )
    LOCAL nI
    LOCAL nA
    LOCAL nB
@@ -1549,8 +1627,8 @@ RETURN .T.
 
 
 FUNCTION Test_Mod_Fuzz_SmallDecimalOracle()
-   LOCAL nSeed := 20260422
-   LOCAL nLoops := 400
+   LOCAL nSeed := HBNumTestConfigGetInt( "unit", "mod_fuzz_decimal_seed", 20260422, "HBNUM_UNIT_MOD_FUZZ_DECIMAL_SEED" )
+   LOCAL nLoops := HBNumTestConfigGetInt( "unit", "mod_fuzz_decimal_loops", 400, "HBNUM_UNIT_MOD_FUZZ_DECIMAL_LOOPS" )
    LOCAL nI
    LOCAL aA
    LOCAL aB

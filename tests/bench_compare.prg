@@ -401,13 +401,19 @@ STATIC FUNCTION __BuildPerfCases()
 RETURN aCases
 
 STATIC FUNCTION __ReadEnvText( cName, cDefault )
-   LOCAL cValue := Upper( AllTrim( GetEnv( cName ) ) )
+   LOCAL cValue
 
+   IF cName == "HBNUM_BENCH_FILTER"
+      cValue := HBNumTestConfigGetText( "benchmark", "filter", cDefault, cName )
+      RETURN Upper( AllTrim( cValue ) )
+   ENDIF
+
+   cValue := AllTrim( GetEnv( cName ) )
    IF Empty( cValue )
       RETURN cDefault
    ENDIF
 
-RETURN cValue
+RETURN Upper( cValue )
 
 STATIC FUNCTION __BenchCaseEnabled( aCase )
    LOCAL cFilter := __ReadEnvText( "HBNUM_BENCH_FILTER", "" )
@@ -425,11 +431,16 @@ STATIC FUNCTION __BenchCaseEnabled( aCase )
 RETURN cFilter $ cId .OR. cFilter $ cOp
 
 STATIC FUNCTION __BenchSkipPerf()
-   LOCAL cValue := __ReadEnvText( "HBNUM_BENCH_SKIP_PERF", "" )
-
-RETURN cValue == "1" .OR. cValue == "TRUE" .OR. cValue == "YES" .OR. cValue == "ON"
+RETURN HBNumTestConfigGetLogical( "benchmark", "skip_perf", .F., "HBNUM_BENCH_SKIP_PERF" )
 
 #ifdef HBNUM_BENCH_WITH_TBIG
+STATIC FUNCTION __TBigEnabled()
+RETURN HBNumTestConfigGetLogical( "compare.tbig", "enabled", .T., "HBNUM_TBIG_ENABLE" )
+
+STATIC FUNCTION __TBigLoopCap( cOp, nDefault )
+RETURN HBNumTestConfigGetInt( "compare.tbig", Lower( cOp ) + "_loops", nDefault, ;
+   "HBNUM_TBIG_" + Upper( cOp ) + "_LOOPS" )
+
 STATIC FUNCTION __CaseValue( aCase, nIndex )
    IF nIndex <= Len( aCase )
       RETURN aCase[ nIndex ]
@@ -883,6 +894,8 @@ STATIC PROCEDURE __RunPerfTBig( aCases )
          nBenchLoops := Min( aCase[ C_LOOPS ], 1000 )
       ENDCASE
 
+      nBenchLoops := __TBigLoopCap( aCase[ C_OP ], nBenchLoops )
+
       __SpinnerStart( "tBig perf " + aCase[ C_ID ] + " [" + aCase[ C_OP ] + "]", nBenchLoops )
       BEGIN SEQUENCE
          nStart := __NowMs()
@@ -934,21 +947,39 @@ FUNCTION Main()
    LOCAL lOk := .T.
    LOCAL lSkipPerf := __BenchSkipPerf()
    LOCAL cFilter := __ReadEnvText( "HBNUM_BENCH_FILTER", "" )
+   LOCAL cProfile := HBNumTestConfigProfileName()
+   LOCAL cConfigPath := HBNumTestConfigLoadedPath()
+#ifdef HBNUM_BENCH_WITH_TBIG
+   LOCAL lTBigEnabled := __TBigEnabled()
+#endif
 
    __InitBenchLog()
 
    ? "HBNum Benchmark/Accuracy Suite"
    ? "Log file :", __cLogFileName
    ? "CSV file :", __cCsvFileName
+   ? "Config   :", cConfigPath
+   ? "Profile  :", IIf( Empty( cProfile ), "(default)", cProfile )
    IF ! Empty( cFilter )
       ? "Filter   :", cFilter
       __LogLine( "BENCH", "Case filter active: " + cFilter, HB_LOG_INFO )
    ENDIF
+   __LogLine( "CONFIG", ;
+      "file=" + cConfigPath + ;
+      ", profile=" + IIf( Empty( cProfile ), "(default)", cProfile ) + ;
+      ", filter=" + IIf( Empty( cFilter ), "(none)", cFilter ) + ;
+      ", skip_perf=" + IIf( lSkipPerf, "true", "false" ), ;
+      HB_LOG_INFO )
 
    lOk := __RunAccuracyHBNum( aAccuracyCases ) .AND. lOk
 
 #ifdef HBNUM_BENCH_WITH_TBIG
-   lOk := __RunAccuracyCompare( aAccuracyCompareCases ) .AND. lOk
+   IF lTBigEnabled
+      lOk := __RunAccuracyCompare( aAccuracyCompareCases ) .AND. lOk
+   ELSE
+      ? "Comparative mode with tBigNumber is disabled by profile."
+      __LogLine( "ACCURACY", "Comparative mode disabled by profile.", HB_LOG_INFO )
+   ENDIF
 #else
    ? "Comparative mode with tBigNumber is disabled in this build."
    __LogLine( "ACCURACY", "Comparative mode disabled (build without HBNUM_BENCH_WITH_TBIG).", HB_LOG_INFO )
@@ -961,7 +992,9 @@ FUNCTION Main()
       __RunPerfHBNum( aPerfCases )
 
 #ifdef HBNUM_BENCH_WITH_TBIG
-      __RunPerfTBig( aPerfCases )
+      IF lTBigEnabled
+         __RunPerfTBig( aPerfCases )
+      ENDIF
 #endif
    ENDIF
 
