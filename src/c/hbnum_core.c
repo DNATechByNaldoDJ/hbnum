@@ -335,26 +335,6 @@ static HB_U32 hbnum_mag_mod_small( const HB_U32 * pLimbs, HB_SIZE nUsed, HB_U32 
    return nRemainder;
 }
 
-static HB_SIZE hbnum_mag_bitlen( const HB_U32 * pLimbs, HB_SIZE nUsed )
-{
-   HB_SIZE nBits = 0;
-
-   if( nUsed > 0 )
-   {
-      HB_U32 nTop = pLimbs[ nUsed - 1 ];
-
-      nBits = ( nUsed - 1 ) * HBNUM_LIMB_BITS;
-
-      while( nTop != 0 )
-      {
-         ++nBits;
-         nTop >>= 1;
-      }
-   }
-
-   return nBits;
-}
-
 static HB_BOOL hbnum_mag_shift_left_bits( const HB_U32 * pSrc, HB_SIZE nSrcUsed, HB_SIZE nBits, HB_U32 ** ppOut, HB_SIZE * pnOutUsed )
 {
    HB_SIZE nWordShift = nBits / HBNUM_LIMB_BITS;
@@ -394,35 +374,108 @@ static HB_BOOL hbnum_mag_shift_left_bits( const HB_U32 * pSrc, HB_SIZE nSrcUsed,
    return HB_TRUE;
 }
 
-static void hbnum_mag_shift_right_one_inplace( HB_U32 * pLimbs, HB_SIZE * pnUsed )
+static HB_SIZE hbnum_limb_normalize_shift( HB_U32 nLimb )
+{
+   HB_SIZE nShift = 0;
+
+   while( nLimb != 0 && nLimb < ( HBNUM_BASE >> 1 ) )
+   {
+      nLimb <<= 1;
+      ++nShift;
+   }
+
+   return nShift;
+}
+
+static void hbnum_mag_shift_right_bits_inplace( HB_U32 * pLimbs, HB_SIZE * pnUsed, HB_SIZE nBits )
 {
    HB_U32 nCarry = 0;
+   HB_U32 nMask;
    HB_SIZE nPos;
+
+   if( nBits == 0 || *pnUsed == 0 )
+      return;
+
+   nMask = ( ( HB_U32 ) 1U << nBits ) - 1U;
 
    for( nPos = *pnUsed; nPos > 0; --nPos )
    {
       HB_U32 nCurrent = pLimbs[ nPos - 1 ];
 
-      pLimbs[ nPos - 1 ] = ( nCurrent >> 1 ) | ( nCarry << ( HBNUM_LIMB_BITS - 1 ) );
-      nCarry = nCurrent & 1U;
+      pLimbs[ nPos - 1 ] = ( ( nCurrent >> nBits ) | ( nCarry << ( HBNUM_LIMB_BITS - nBits ) ) ) & HBNUM_MASK;
+      nCarry = nCurrent & nMask;
    }
 
    while( *pnUsed > 0 && pLimbs[ *pnUsed - 1 ] == 0 )
       --( *pnUsed );
 }
 
+static HB_BOOL hbnum_mag_sub_mul_at( HB_U32 * pTarget, HB_SIZE nOffset, const HB_U32 * pMul, HB_SIZE nMulUsed, HB_U32 nFactor )
+{
+   HB_U64 nCarry = 0;
+   HB_U64 nBorrow = 0;
+   HB_U64 nBase = ( HB_U64 ) HBNUM_BASE;
+   HB_SIZE nPos;
+
+   for( nPos = 0; nPos < nMulUsed; ++nPos )
+   {
+      HB_U64 nProduct = ( HB_U64 ) nFactor * pMul[ nPos ] + nCarry;
+      HB_U64 nSub = ( nProduct & HBNUM_MASK ) + nBorrow;
+      HB_SIZE nTargetPos = nOffset + nPos;
+
+      if( pTarget[ nTargetPos ] < nSub )
+      {
+         pTarget[ nTargetPos ] = ( HB_U32 ) ( ( HB_U64 ) pTarget[ nTargetPos ] + nBase - nSub );
+         nBorrow = 1;
+      }
+      else
+      {
+         pTarget[ nTargetPos ] = ( HB_U32 ) ( ( HB_U64 ) pTarget[ nTargetPos ] - nSub );
+         nBorrow = 0;
+      }
+
+      nCarry = nProduct >> HBNUM_LIMB_BITS;
+   }
+
+   nBorrow += nCarry;
+   if( pTarget[ nOffset + nMulUsed ] < nBorrow )
+   {
+      pTarget[ nOffset + nMulUsed ] = ( HB_U32 ) ( ( HB_U64 ) pTarget[ nOffset + nMulUsed ] + nBase - nBorrow );
+      return HB_TRUE;
+   }
+
+   pTarget[ nOffset + nMulUsed ] = ( HB_U32 ) ( ( HB_U64 ) pTarget[ nOffset + nMulUsed ] - nBorrow );
+   return HB_FALSE;
+}
+
+static void hbnum_mag_add_at( HB_U32 * pTarget, HB_SIZE nOffset, const HB_U32 * pAdd, HB_SIZE nAddUsed )
+{
+   HB_U64 nCarry = 0;
+   HB_SIZE nPos;
+
+   for( nPos = 0; nPos < nAddUsed; ++nPos )
+   {
+      HB_U64 nValue = ( HB_U64 ) pTarget[ nOffset + nPos ] + pAdd[ nPos ] + nCarry;
+
+      pTarget[ nOffset + nPos ] = ( HB_U32 ) ( nValue & HBNUM_MASK );
+      nCarry = nValue >> HBNUM_LIMB_BITS;
+   }
+
+   pTarget[ nOffset + nAddUsed ] = ( HB_U32 ) ( ( ( HB_U64 ) pTarget[ nOffset + nAddUsed ] + nCarry ) & HBNUM_MASK );
+}
+
 static HB_BOOL hbnum_mag_divmod( const HB_U32 * pDividend, HB_SIZE nDividendUsed, const HB_U32 * pDivisor, HB_SIZE nDivisorUsed, HB_U32 ** ppQuot, HB_SIZE * pnQuotUsed, HB_U32 ** ppRem, HB_SIZE * pnRemUsed )
 {
    HB_BOOL fNeedQuot = ppQuot != NULL && pnQuotUsed != NULL;
    HB_BOOL fNeedRem = ppRem != NULL && pnRemUsed != NULL;
-   HB_U32 * pRemainder = NULL;
-   HB_SIZE nRemainderUsed = 0;
-   HB_U32 * pShiftedDivisor;
-   HB_SIZE nShiftedDivisorUsed;
-   HB_SIZE nShift;
+   HB_U32 * pNormDividend = NULL;
+   HB_SIZE nNormDividendUsed = 0;
+   HB_U32 * pNormDivisor = NULL;
+   HB_SIZE nNormDivisorUsed = 0;
+   HB_SIZE nNormShift;
+   HB_SIZE nDivOffset;
    HB_U32 * pQuot = NULL;
    HB_SIZE nQuotUsed = 0;
-   HB_SIZE nLoop;
 
    if( nDivisorUsed == 0 )
       return HB_FALSE;
@@ -483,40 +536,56 @@ static HB_BOOL hbnum_mag_divmod( const HB_U32 * pDividend, HB_SIZE nDividendUsed
       return HB_TRUE;
    }
 
-   nShift = hbnum_mag_bitlen( pDividend, nDividendUsed ) - hbnum_mag_bitlen( pDivisor, nDivisorUsed );
-   pRemainder = hbnum_limbs_dup( pDividend, nDividendUsed );
-   nRemainderUsed = nDividendUsed;
-   hbnum_mag_shift_left_bits( pDivisor, nDivisorUsed, nShift, &pShiftedDivisor, &nShiftedDivisorUsed );
+   nNormShift = hbnum_limb_normalize_shift( pDivisor[ nDivisorUsed - 1 ] );
+   hbnum_mag_shift_left_bits( pDividend, nDividendUsed, nNormShift, &pNormDividend, &nNormDividendUsed );
+   hbnum_mag_shift_left_bits( pDivisor, nDivisorUsed, nNormShift, &pNormDivisor, &nNormDivisorUsed );
 
    if( fNeedQuot )
    {
-      nQuotUsed = ( nShift / HBNUM_LIMB_BITS ) + 1;
+      nQuotUsed = nDividendUsed - nDivisorUsed + 1;
       pQuot = ( HB_U32 * ) hb_xgrab( sizeof( HB_U32 ) * nQuotUsed );
       memset( pQuot, 0, sizeof( HB_U32 ) * nQuotUsed );
    }
 
-   for( nLoop = nShift + 1; nLoop > 0; --nLoop )
+   for( nDivOffset = nDividendUsed - nDivisorUsed + 1; nDivOffset > 0; --nDivOffset )
    {
-      HB_SIZE nBit = nLoop - 1;
+      HB_SIZE nOffset = nDivOffset - 1;
+      HB_U64 nTop = ( ( HB_U64 ) pNormDividend[ nOffset + nDivisorUsed ] << HBNUM_LIMB_BITS ) |
+         pNormDividend[ nOffset + nDivisorUsed - 1 ];
+      HB_U64 nQHat = nTop / pNormDivisor[ nDivisorUsed - 1 ];
+      HB_U64 nRHat = nTop % pNormDivisor[ nDivisorUsed - 1 ];
 
-      if( hbnum_mag_cmp( pRemainder, nRemainderUsed, pShiftedDivisor, nShiftedDivisorUsed ) >= 0 )
+      if( nQHat >= HBNUM_BASE )
       {
-         hbnum_mag_sub_inplace( pRemainder, &nRemainderUsed, pShiftedDivisor, nShiftedDivisorUsed );
-
-         if( fNeedQuot )
-         {
-            HB_SIZE nLimb = nBit / HBNUM_LIMB_BITS;
-            HB_SIZE nOffset = nBit % HBNUM_LIMB_BITS;
-
-            pQuot[ nLimb ] |= ( HB_U32 ) ( 1U << nOffset );
-         }
+         nQHat = HBNUM_BASE - 1;
+         nRHat += pNormDivisor[ nDivisorUsed - 1 ];
       }
 
-      if( nBit > 0 )
-         hbnum_mag_shift_right_one_inplace( pShiftedDivisor, &nShiftedDivisorUsed );
+      while( nDivisorUsed > 1 )
+      {
+         HB_U64 nLeft = nQHat * pNormDivisor[ nDivisorUsed - 2 ];
+         HB_U64 nRight = ( nRHat << HBNUM_LIMB_BITS ) | pNormDividend[ nOffset + nDivisorUsed - 2 ];
+
+         if( nLeft <= nRight )
+            break;
+
+         --nQHat;
+         nRHat += pNormDivisor[ nDivisorUsed - 1 ];
+         if( nRHat >= HBNUM_BASE )
+            break;
+      }
+
+      if( hbnum_mag_sub_mul_at( pNormDividend, nOffset, pNormDivisor, nDivisorUsed, ( HB_U32 ) nQHat ) )
+      {
+         --nQHat;
+         hbnum_mag_add_at( pNormDividend, nOffset, pNormDivisor, nDivisorUsed );
+      }
+
+      if( fNeedQuot )
+         pQuot[ nOffset ] = ( HB_U32 ) nQHat;
    }
 
-   hb_xfree( pShiftedDivisor );
+   hb_xfree( pNormDivisor );
 
    if( fNeedQuot )
    {
@@ -529,22 +598,28 @@ static HB_BOOL hbnum_mag_divmod( const HB_U32 * pDividend, HB_SIZE nDividendUsed
 
    if( fNeedRem )
    {
+      HB_U32 * pRemainder;
+      HB_SIZE nRemainderUsed = nDivisorUsed;
+
+      while( nRemainderUsed > 0 && pNormDividend[ nRemainderUsed - 1 ] == 0 )
+         --nRemainderUsed;
+
+      hbnum_mag_shift_right_bits_inplace( pNormDividend, &nRemainderUsed, nNormShift );
+
       if( nRemainderUsed == 0 )
       {
-         hb_xfree( pRemainder );
          *ppRem = NULL;
       }
       else
       {
+         pRemainder = hbnum_limbs_dup( pNormDividend, nRemainderUsed );
          *ppRem = pRemainder;
       }
 
       *pnRemUsed = nRemainderUsed;
    }
-   else
-   {
-      hb_xfree( pRemainder );
-   }
+
+   hb_xfree( pNormDividend );
 
    return HB_TRUE;
 }

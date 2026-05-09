@@ -5,6 +5,39 @@
    (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm")+" UTC naldodj (Add INI test profiles and validation gate)"
 */
 
+2026-05-07 10:43 UTC naldodj (Add environment preset scripts)
+  Add env/hbnum_env.ps1 as the main environment preset helper for local, gate, smoke, and tuning runs, including Zig path defaults and optional benchmark/tBig overrides.
+  Add env/hbnum_env.bat as a cmd.exe wrapper that reuses the PowerShell helper and applies the resulting SET commands to the caller environment.
+  Document the preset scripts in README so runtime knobs can stay centralized in tests/hbnum_test.ini by default.
+  + env/hbnum_env.ps1
+  + env/hbnum_env.bat
+  * README.md
+  * ChangeLog.txt
+
+2026-05-07 10:26 UTC naldodj (Add stable benchmark tuning knobs)
+  Add HBNum benchmark loop_multiplier, min_ms, and max_loops controls, including environment overrides, so fast cases can be remeasured with enough loops to avoid zero-millisecond timer noise.
+  Add a tuning profile that runs performance cases only, applies a larger HBNum loop multiplier, grows short measurements toward a minimum duration, and disables comparative tBigNumber sections for focused HBNum tuning.
+  Document the new benchmark knobs and profile in README.
+  * tests/bench_compare.prg
+  * tests/hbnum_test.ini
+  * README.md
+  * ChangeLog.txt
+
+2026-05-06 23:11 UTC naldodj (Replace multi-limb division core)
+  Replace the bit-by-bit multi-limb path in hbnum_mag_divmod() with normalized limb-estimated division while keeping the existing single-limb divisor fast path.
+  Remove the old bit-length and shift-right-one helpers that were only needed by the bit-by-bit division path.
+  Add multi-limb Div, Mod, and GCD regression vectors, including top-heavy divisor cases that exercise qhat correction.
+  Rebuild MSVC64 test, robustness, benchmark, and comparative benchmark executables as part of validation. Initial local PERF_MOD_512D timing improved from 33 ms in the previous log to 18 ms in the focused run.
+  Update README status and next steps so the remaining work is broader rebenchmark/tuning across MSVC64 and Zig.
+  * src/c/hbnum_core.c
+  * tests/test.prg
+  * README.md
+  * ChangeLog.txt
+  * exe/win/msvc64/hbnum_test.exe
+  * exe/win/msvc64/hbnum_robust.exe
+  * exe/win/msvc64/hbnum_bench.exe
+  * exe/win/msvc64/hbnum_bench_tbig.exe
+
 2026-05-04 00:19 UTC naldodj (Add INI test profiles and validation gate)
   Add shared tests/hbnum_test.ini profile loading with HBNUM_TEST_PROFILE support and environment-variable overrides for unit, robustness, benchmark, and comparative benchmark runners.
   Add unit group selection, profile-driven mod fuzz loop counts, robustness loop loading, benchmark filter/skip_perf loading, and comparative tBigNumber enable/loop caps.

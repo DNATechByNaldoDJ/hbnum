@@ -256,7 +256,7 @@ Planned extensions for this same area include grouped/fixed decimal formatting,
 
 ## Implementation Status
 
-Updated: 2026-05-04.
+Updated: 2026-05-06.
 
 Core arithmetic and model:
 
@@ -312,12 +312,14 @@ Testing and validation:
 - [x] Test log output: `log/win/msvc64/hbnum_tests.log`.
 - [x] Spinner feedback for long-running tests and benchmarks.
 - [x] Mod fuzz tests in the normal test suite.
+- [x] Focused multi-limb division, modulo, and GCD regression vectors.
 - [x] Robustness/property runner: `tests/robustness.prg`.
 - [x] Robustness loop control through `HBNUM_ROBUST_*`.
 - [x] INI profile loading through `tests/hbnum_test.ini`.
 - [x] Unit group selection and mod fuzz loop control through profile/env settings.
 - [x] Benchmark and accuracy runner: `tests/bench_compare.prg`.
 - [x] CSV and log output for benchmark runs.
+- [x] Benchmark loop multiplier/minimum-duration knobs and `tuning` profile.
 - [x] Comparative HBNum x tBigNumber build path.
 - [x] Comparative tBigNumber build links the real Harbour MT VM; the old link stub was removed.
 - [x] Harbour commit-check wrapper exists: `mk/go64_commit_check.bat`.
@@ -328,8 +330,8 @@ Performance:
 
 - [x] `Mod` optimized to avoid redundant quotient multiplication.
 - [x] Single-limb divisor fast path in internal division/modulo helper.
-- [ ] Division still uses bit-by-bit long division for multi-limb divisors.
-- [ ] Replace multi-limb division with limb-estimated division.
+- [x] Multi-limb division uses normalized limb-estimated division in `hbnum_mag_divmod()`.
+- [ ] Rebenchmark and tune division-dependent operations across MSVC64 and Zig.
 - [ ] Clean up runtime-library warning `LNK4098`.
 
 Porting and compatibility:
@@ -503,6 +505,25 @@ log/win/msvc64/hbnum_robust.log
 
 The project already supports environment-driven test and benchmark control.
 
+Environment preset scripts:
+
+```bat
+env\hbnum_env.bat tuning
+exe\win\msvc64\hbnum_bench.exe
+```
+
+```powershell
+.\env\hbnum_env.ps1 tuning
+.\exe\win\msvc64\hbnum_bench.exe
+```
+
+Available presets are `local`, `default`, `gate`, `smoke`, and `tuning`.
+The scripts set `HBNUM_TEST_INI`, `HBNUM_TEST_PROFILE`, and the Zig build
+variables, while clearing per-run overrides so `tests/hbnum_test.ini` remains
+the source of truth. Pass explicit script options such as
+`-BenchFilter PERF_MOD_512D`, `-DisableZig`, or `-DisableTBig` for one-off
+overrides.
+
 Shared profile loader:
 
 | Variable | Purpose |
@@ -526,6 +547,9 @@ Benchmark runner:
 | --- | --- |
 | `HBNUM_BENCH_FILTER` | Runs only cases matching the filter text |
 | `HBNUM_BENCH_SKIP_PERF` | Skips performance loops when truthy |
+| `HBNUM_BENCH_LOOP_MULTIPLIER` | Multiplies HBNum performance loops for more stable timings |
+| `HBNUM_BENCH_MIN_MS` | Retests a HBNum performance case with more loops until this target duration is reached |
+| `HBNUM_BENCH_MAX_LOOPS` | Caps adaptive HBNum performance loop growth |
 | `HBNUM_TBIG_ENABLE` | Enables/disables comparative tBigNumber sections in comparative builds |
 | `HBNUM_TBIG_<OP>_LOOPS` | Overrides `[compare.tbig]` caps, for example `HBNUM_TBIG_MOD_LOOPS` |
 
@@ -533,6 +557,13 @@ Example:
 
 ```bat
 set HBNUM_BENCH_FILTER=PERF_MOD_512D
+exe\win\msvc64\hbnum_bench.exe
+```
+
+Stable HBNum-only tuning run:
+
+```bat
+set HBNUM_TEST_PROFILE=tuning
 exe\win\msvc64\hbnum_bench.exe
 ```
 
@@ -609,6 +640,9 @@ lifecycle_loops=5000
 [benchmark]
 filter=PERF_MOD_512D
 skip_perf=false
+loop_multiplier=1
+min_ms=0
+max_loops=1000000
 
 [compare.tbig]
 enabled=true
@@ -620,6 +654,11 @@ nthroot_loops=1
 Status: profile loading is implemented for the unit, robustness, benchmark, and
 comparative benchmark runners. Environment variables still take precedence over
 INI values.
+
+The `tuning` profile runs only performance cases (`filter=PERF`), multiplies
+HBNum loops, and asks the runner to grow short cases until they reach a minimum
+measurement duration. Comparative tBigNumber sections are disabled in that
+profile so slow external operations do not dominate HBNum tuning runs.
 
 ## tBigNumber Comparative Mode
 
@@ -656,6 +695,7 @@ Current validation coverage includes:
 
 - Deterministic unit tests for all public operations listed in the implemented status.
 - Mod fuzz tests for integer and decimal operands.
+- Focused multi-limb `Div`, `Mod`, and `GCD` regression vectors.
 - Robustness/property tests with integer, decimal, large constructed, and lifecycle scenarios.
 - HBNum-only benchmark and accuracy checks.
 - Comparative HBNum x tBigNumber accuracy checks for the shared-compatible subset.
@@ -703,35 +743,30 @@ Implementation sequence:
    - Reuse `mk/go64_gate.bat` where practical.
    - Keep the gate's final PASS/FAIL status aligned with the log files.
 
-3. Replace multi-limb bit-by-bit division with limb-estimated division.
-   - The current multi-limb path in `hbnum_mag_divmod()` is correct but intentionally simple.
-   - A limb-estimated algorithm should improve `Div`, `Mod`, `GCD`, `LCM`, `PowMod`, `MillerRabin`, roots, and logs.
-   - Keep the current single-limb fast path and add focused regression vectors before replacing the multi-limb path.
-
-4. Rebenchmark and tune division-dependent operations.
+3. Rebenchmark and tune division-dependent operations.
    - Compare MSVC64 and Zig results before and after the division rewrite.
    - Track `PERF_MOD_512D`, `PERF_GCD_240D`, `PERF_LN_10P200`, root/log cases, and comparative tBigNumber cases.
-   - Update benchmark loop counts only when the measurements remain stable and useful.
+   - Use `HBNUM_TEST_PROFILE=tuning` or the benchmark loop knobs for stable HBNum-only measurements before changing core algorithms.
 
-5. Expand the tBigNumber comparative matrix.
+4. Expand the tBigNumber comparative matrix.
    - Map more of the external `tBigNtst` inventory into HBNum tests.
    - Use safe caps for very slow tBigNumber operations, especially large `Mod` and `NthRoot` cases.
    - Keep comparative failures clearly attributable to HBNum, tBigNumber, or build/link configuration.
 
-6. Investigate and clean up `LNK4098` runtime-library warnings.
+5. Investigate and clean up `LNK4098` runtime-library warnings.
    - Audit MSVC runtime flags in `.hbp` and `.hbc` files.
    - Keep the final MSVC build warning profile intentional and documented.
 
-7. Add general `Pow` with negative exponent support.
+6. Add general `Pow` with negative exponent support.
    - Define precision/context policy before exposing the API.
    - Reuse existing exact `PowInt` behavior for non-negative integer exponents.
 
-8. Expand the formatting/conversion toolkit.
+7. Expand the formatting/conversion toolkit.
    - Add grouped/fixed/custom output.
    - Add `NoRnd`-style display behavior.
    - Add base conversion helpers such as `D2H/H2D/H2B/B2H/D2B/B2D`.
 
-9. Add optional cross-tool memory validation.
+8. Add optional cross-tool memory validation.
    - Keep Application Verifier-compatible workflows.
    - Add additional tooling only when it is locally available and repeatable.
 

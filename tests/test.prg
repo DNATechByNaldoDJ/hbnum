@@ -442,6 +442,9 @@ FUNCTION Main()
    lOk := __RunTest( "Test_Div_NoMutation", Test_Div_NoMutation() ) .AND. lOk
    lOk := __RunTest( "Test_Div_Exact_NoPrecision", Test_Div_Exact_NoPrecision() ) .AND. lOk
    lOk := __RunTest( "Test_Div_NonTerminating_RequiresPrecision", Test_Div_NonTerminating_RequiresPrecision() ) .AND. lOk
+   lOk := __RunTest( "Test_Div_MultiLimb_EstimatedQuotient", Test_Div_MultiLimb_EstimatedQuotient() ) .AND. lOk
+   lOk := __RunTest( "Test_Div_MultiLimb_TopHeavyDivisor", Test_Div_MultiLimb_TopHeavyDivisor() ) .AND. lOk
+   lOk := __RunTest( "Test_Div_MultiLimb_ExactLarge", Test_Div_MultiLimb_ExactLarge() ) .AND. lOk
    __EndUnitGroup()
    ELSE
       __SkipUnitGroup( "DIV TESTS", "div" )
@@ -532,6 +535,8 @@ FUNCTION Main()
    lOk := __RunTest( "Test_Mod_BothNegative", Test_Mod_BothNegative() ) .AND. lOk
    lOk := __RunTest( "Test_Mod_DecimalScale", Test_Mod_DecimalScale() ) .AND. lOk
    lOk := __RunTest( "Test_Mod_ScaledDividendLessThanDivisor", Test_Mod_ScaledDividendLessThanDivisor() ) .AND. lOk
+   lOk := __RunTest( "Test_Mod_MultiLimb_EstimatedRemainder", Test_Mod_MultiLimb_EstimatedRemainder() ) .AND. lOk
+   lOk := __RunTest( "Test_Mod_MultiLimb_TopHeavyDivisor", Test_Mod_MultiLimb_TopHeavyDivisor() ) .AND. lOk
    lOk := __RunTest( "Test_Mod_NoMutation", Test_Mod_NoMutation() ) .AND. lOk
    lOk := __RunTest( "Test_Mod_Fuzz_SmallIntOracle", Test_Mod_Fuzz_SmallIntOracle() ) .AND. lOk
    lOk := __RunTest( "Test_Mod_Fuzz_SmallDecimalOracle", Test_Mod_Fuzz_SmallDecimalOracle() ) .AND. lOk
@@ -561,6 +566,7 @@ FUNCTION Main()
    lOk := __RunTest( "Test_Gcd_Negative", Test_Gcd_Negative() ) .AND. lOk
    lOk := __RunTest( "Test_Gcd_Coprime", Test_Gcd_Coprime() ) .AND. lOk
    lOk := __RunTest( "Test_Gcd_LargeCommonFactor", Test_Gcd_LargeCommonFactor() ) .AND. lOk
+   lOk := __RunTest( "Test_Gcd_MultiLimbSharedFactor", Test_Gcd_MultiLimbSharedFactor() ) .AND. lOk
    lOk := __RunTest( "Test_Gcd_NoMutation", Test_Gcd_NoMutation() ) .AND. lOk
    lOk := __RunTest( "Test_Lcm_Simple", Test_Lcm_Simple() ) .AND. lOk
    lOk := __RunTest( "Test_Lcm_Zero", Test_Lcm_Zero() ) .AND. lOk
@@ -955,6 +961,39 @@ FUNCTION Test_Div_NonTerminating_RequiresPrecision()
 
    __SetTrace( "1 / 3 sem precision/context limit", "Non-terminating decimal division", cActual )
 RETURN lRaised .AND. "Non-terminating decimal division" $ cActual
+
+
+FUNCTION Test_Div_MultiLimb_EstimatedQuotient()
+   LOCAL oA := HBNum():New( "1427247693928616709997401550214343733138161741" )
+   LOCAL oB := HBNum():New( "1152934759949671045" )
+   LOCAL oR := oA:Div( oB, 0 )
+   LOCAL cExpected := "1237925807693507499302169311"
+   LOCAL cActual := oR:ToString()
+
+   __SetTrace( "multi-limb truncating division", cExpected, cActual )
+RETURN cActual == cExpected
+
+
+FUNCTION Test_Div_MultiLimb_TopHeavyDivisor()
+   LOCAL oA := HBNum():New( "1427247692705959878738962385217433999719269351" )
+   LOCAL oB := HBNum():New( "1237940035834834525671839367" )
+   LOCAL oR := oA:Div( oB, 0 )
+   LOCAL cExpected := "1152921507820418134"
+   LOCAL cActual := oR:ToString()
+
+   __SetTrace( "multi-limb division with top-heavy divisor", cExpected, cActual )
+RETURN cActual == cExpected
+
+
+FUNCTION Test_Div_MultiLimb_ExactLarge()
+   LOCAL oA := HBNum():New( "1427247693049832113627834810402534215138397535" )
+   LOCAL oB := HBNum():New( "1152921504662402531" )
+   LOCAL oR := oA:Div( oB, 0 )
+   LOCAL cExpected := "1237940039523989569216070485"
+   LOCAL cActual := oR:ToString()
+
+   __SetTrace( "multi-limb exact division", cExpected, cActual )
+RETURN cActual == cExpected
 
 
 FUNCTION Test_Context_DefaultPrecision()
@@ -1548,6 +1587,28 @@ FUNCTION Test_Mod_ScaledDividendLessThanDivisor()
 RETURN cActual == cExpected
 
 
+FUNCTION Test_Mod_MultiLimb_EstimatedRemainder()
+   LOCAL oA := HBNum():New( "1427247693928616709997401550214343733138161741" )
+   LOCAL oB := HBNum():New( "1152934759949671045" )
+   LOCAL oR := oA:Mod( oB )
+   LOCAL cExpected := "881734783793861746"
+   LOCAL cActual := oR:ToString()
+
+   __SetTrace( "multi-limb remainder", cExpected, cActual )
+RETURN cActual == cExpected
+
+
+FUNCTION Test_Mod_MultiLimb_TopHeavyDivisor()
+   LOCAL oA := HBNum():New( "1427247692705959878738962385217433999719269351" )
+   LOCAL oB := HBNum():New( "1237940035834834525671839367" )
+   LOCAL oR := oA:Mod( oB )
+   LOCAL cExpected := "102247081003402380897388173"
+   LOCAL cActual := oR:ToString()
+
+   __SetTrace( "multi-limb remainder with top-heavy divisor", cExpected, cActual )
+RETURN cActual == cExpected
+
+
 FUNCTION Test_Mod_NoMutation()
    LOCAL oA := HBNum():New( "10.5" )
    LOCAL oB := HBNum():New( "-0.2" )
@@ -1807,6 +1868,17 @@ FUNCTION Test_Gcd_LargeCommonFactor()
    LOCAL cActual := oR:ToString()
 
    __SetTrace( "GCD(456790119345679011930, 1123456780012345677990)", cExpected, cActual )
+RETURN cActual == cExpected
+
+
+FUNCTION Test_Gcd_MultiLimbSharedFactor()
+   LOCAL oA := HBNum():New( "1427247693049832113627834810402534215138397535" )
+   LOCAL oB := HBNum():New( "1338856417414364070706775881640269513" )
+   LOCAL oR := oA:Gcd( oB )
+   LOCAL cExpected := "1152921504662402531"
+   LOCAL cActual := oR:ToString()
+
+   __SetTrace( "gcd with multi-limb shared factor", cExpected, cActual )
 RETURN cActual == cExpected
 
 

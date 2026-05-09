@@ -433,6 +433,43 @@ RETURN cFilter $ cId .OR. cFilter $ cOp
 STATIC FUNCTION __BenchSkipPerf()
 RETURN HBNumTestConfigGetLogical( "benchmark", "skip_perf", .F., "HBNUM_BENCH_SKIP_PERF" )
 
+STATIC FUNCTION __BenchLoopMultiplier()
+RETURN Max( HBNumTestConfigGetInt( "benchmark", "loop_multiplier", 1, ;
+   "HBNUM_BENCH_LOOP_MULTIPLIER" ), 1 )
+
+STATIC FUNCTION __BenchMinMs()
+RETURN HBNumTestConfigGetInt( "benchmark", "min_ms", 0, "HBNUM_BENCH_MIN_MS" )
+
+STATIC FUNCTION __BenchMaxLoops()
+RETURN Max( HBNumTestConfigGetInt( "benchmark", "max_loops", 1000000, ;
+   "HBNUM_BENCH_MAX_LOOPS" ), 1 )
+
+STATIC FUNCTION __BenchScaledLoops( aCase )
+   LOCAL nLoops := aCase[ C_LOOPS ]
+
+   IF ! HB_ISNUMERIC( nLoops )
+      nLoops := 1
+   ENDIF
+
+RETURN Max( 1, Int( nLoops ) * __BenchLoopMultiplier() )
+
+STATIC FUNCTION __BenchNextLoops( nLoops, nElapsed, nMinMs, nMaxLoops )
+   LOCAL nNext
+
+   IF nElapsed <= 0
+      nNext := nLoops * 10
+   ELSE
+      nNext := Int( nLoops * ( nMinMs / nElapsed ) ) + 1
+      nNext := Max( nNext, nLoops * 2 )
+   ENDIF
+
+   nNext := Min( nNext, nMaxLoops )
+   IF nNext <= nLoops
+      nNext := Min( nLoops + 1, nMaxLoops )
+   ENDIF
+
+RETURN nNext
+
 #ifdef HBNUM_BENCH_WITH_TBIG
 STATIC FUNCTION __TBigEnabled()
 RETURN HBNumTestConfigGetLogical( "compare.tbig", "enabled", .T., "HBNUM_TBIG_ENABLE" )
@@ -801,6 +838,11 @@ STATIC PROCEDURE __RunPerfHBNum( aCases )
    LOCAL nI
    LOCAL aCase
    LOCAL nLoop
+   LOCAL nBenchLoops
+   LOCAL nMinMs := __BenchMinMs()
+   LOCAL nMaxLoops := __BenchMaxLoops()
+   LOCAL nAttempt
+   LOCAL nNextLoops
    LOCAL nStart
    LOCAL nElapsed
    LOCAL cLast := ""
@@ -815,26 +857,51 @@ STATIC PROCEDURE __RunPerfHBNum( aCases )
          LOOP
       ENDIF
 
-      __SpinnerStart( "HBNum perf " + aCase[ C_ID ] + " [" + aCase[ C_OP ] + "]", aCase[ C_LOOPS ] )
-      nStart := __NowMs()
-      FOR nLoop := 1 TO aCase[ C_LOOPS ]
-         cLast := __EvalHBNum( aCase )
-         __SpinnerTick( nLoop, NIL )
-      NEXT
-      nElapsed := __NowMs() - nStart
-      __SpinnerStop()
+      nBenchLoops := Min( __BenchScaledLoops( aCase ), nMaxLoops )
+      nAttempt := 1
+
+      DO WHILE .T.
+         __SpinnerStart( ;
+            "HBNum perf " + aCase[ C_ID ] + " [" + aCase[ C_OP ] + ;
+            "] loops=" + hb_ntos( nBenchLoops ), ;
+            nBenchLoops )
+         nStart := __NowMs()
+         FOR nLoop := 1 TO nBenchLoops
+            cLast := __EvalHBNum( aCase )
+            __SpinnerTick( nLoop, NIL )
+         NEXT
+         nElapsed := __NowMs() - nStart
+         __SpinnerStop()
+
+         IF nMinMs <= 0 .OR. nElapsed >= nMinMs .OR. nBenchLoops >= nMaxLoops
+            EXIT
+         ENDIF
+
+         nNextLoops := __BenchNextLoops( nBenchLoops, nElapsed, nMinMs, nMaxLoops )
+         __LogLine( "PERF_HBNUM_CALIBRATE", ;
+            aCase[ C_ID ] + ;
+            " attempt=" + hb_ntos( nAttempt ) + ;
+            " loops=" + hb_ntos( nBenchLoops ) + ;
+            " total_ms=" + hb_ntos( nElapsed ) + ;
+            " target_ms=" + hb_ntos( nMinMs ) + ;
+            " next_loops=" + hb_ntos( nNextLoops ), ;
+            HB_LOG_INFO )
+
+         nBenchLoops := nNextLoops
+         nAttempt++
+      ENDDO
 
       ? "[PERF][HBNum]", aCase[ C_ID ], ;
         "op:", aCase[ C_OP ], ;
-        "loops:", hb_ntos( aCase[ C_LOOPS ] ), ;
+        "loops:", hb_ntos( nBenchLoops ), ;
         "total_ms:", hb_ntos( nElapsed ), ;
-        "avg_ms:", hb_ntos( nElapsed / aCase[ C_LOOPS ] )
+        "avg_ms:", hb_ntos( nElapsed / nBenchLoops )
 
       __LogLine( "PERF_HBNUM", ;
          aCase[ C_ID ] + " op=" + aCase[ C_OP ] + ;
-         " loops=" + hb_ntos( aCase[ C_LOOPS ] ) + ;
+         " loops=" + hb_ntos( nBenchLoops ) + ;
          " total_ms=" + hb_ntos( nElapsed ) + ;
-         " avg_ms=" + hb_ntos( nElapsed / aCase[ C_LOOPS ] ) + ;
+         " avg_ms=" + hb_ntos( nElapsed / nBenchLoops ) + ;
          " last=[" + cLast + "]", ;
          HB_LOG_INFO )
 
@@ -843,7 +910,7 @@ STATIC PROCEDURE __RunPerfHBNum( aCases )
          "hbnum", ;
          aCase[ C_ID ], ;
          aCase[ C_OP ], ;
-         aCase[ C_LOOPS ], ;
+         nBenchLoops, ;
          nElapsed, ;
          "", ;
          cLast, ;
@@ -949,6 +1016,9 @@ FUNCTION Main()
    LOCAL cFilter := __ReadEnvText( "HBNUM_BENCH_FILTER", "" )
    LOCAL cProfile := HBNumTestConfigProfileName()
    LOCAL cConfigPath := HBNumTestConfigLoadedPath()
+   LOCAL nLoopMultiplier := __BenchLoopMultiplier()
+   LOCAL nMinMs := __BenchMinMs()
+   LOCAL nMaxLoops := __BenchMaxLoops()
 #ifdef HBNUM_BENCH_WITH_TBIG
    LOCAL lTBigEnabled := __TBigEnabled()
 #endif
@@ -960,6 +1030,9 @@ FUNCTION Main()
    ? "CSV file :", __cCsvFileName
    ? "Config   :", cConfigPath
    ? "Profile  :", IIf( Empty( cProfile ), "(default)", cProfile )
+   ? "Bench cfg:", "loop_multiplier=" + hb_ntos( nLoopMultiplier ) + ;
+      ", min_ms=" + hb_ntos( nMinMs ) + ;
+      ", max_loops=" + hb_ntos( nMaxLoops )
    IF ! Empty( cFilter )
       ? "Filter   :", cFilter
       __LogLine( "BENCH", "Case filter active: " + cFilter, HB_LOG_INFO )
@@ -968,7 +1041,10 @@ FUNCTION Main()
       "file=" + cConfigPath + ;
       ", profile=" + IIf( Empty( cProfile ), "(default)", cProfile ) + ;
       ", filter=" + IIf( Empty( cFilter ), "(none)", cFilter ) + ;
-      ", skip_perf=" + IIf( lSkipPerf, "true", "false" ), ;
+      ", skip_perf=" + IIf( lSkipPerf, "true", "false" ) + ;
+      ", loop_multiplier=" + hb_ntos( nLoopMultiplier ) + ;
+      ", min_ms=" + hb_ntos( nMinMs ) + ;
+      ", max_loops=" + hb_ntos( nMaxLoops ), ;
       HB_LOG_INFO )
 
    lOk := __RunAccuracyHBNum( aAccuracyCases ) .AND. lOk
